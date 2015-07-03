@@ -40,6 +40,26 @@ struct ResourceDefinition
     uint32_t resourcePointer;
 };
 
+size_t ReadResourceDefinitionList(struct ResourceDefinition*** pResources, uint16_t count, FILE* f)
+{
+    void* pBuffer = malloc(sizeof(struct ResourceDefinition) * count);
+    size_t readSize = fread(pBuffer, sizeof(struct ResourceDefinition), count, f);
+
+    *pResources = (struct ResourceDefinition**)malloc(sizeof(struct ResourceDefinition) * count);
+    for (uint16_t i = 0; i < count; i++)
+    {
+        uint32_t bufferIndex = i * sizeof(struct ResourceDefinition);
+        (*pResources)[i] = (struct ResourceDefinition*)malloc(sizeof(struct ResourceDefinition));
+        (*pResources)[i]->ID = OSReadBigInt16(pBuffer, bufferIndex + 0);
+        (*pResources)[i]->nameOffset = OSReadBigInt16(pBuffer, bufferIndex + 2);
+        (*pResources)[i]->attributes = *((uint8_t*)(pBuffer) + bufferIndex + 4);
+        memcpy(&(*pResources)[i]->dataOffset, pBuffer + bufferIndex + 5, 3);
+        (*pResources)[i]->resourcePointer = OSReadBigInt32(pBuffer, bufferIndex + 8);
+    }
+    free(pBuffer);
+    return readSize;
+}
+
 // Read a struct HeaderDefinition from the current position in file
 size_t ReadHeaderDefinition(struct HeaderDefinition* pHeaderDefinition, FILE* f)
 {
@@ -81,7 +101,7 @@ size_t ReadTypeDefinitionList(struct TypeDefinition*** pTypes, uint16_t* pTypeCo
     free(pSizeBuffer);
     void* pBuffer = malloc(sizeof(struct TypeDefinition) * typeCount);
     readSize = fread(pBuffer, sizeof(struct TypeDefinition), typeCount, f);
-    *pTypes = (struct TypeDefinition**)malloc(sizeof(struct TypeDefinition) * typeCount);
+    *pTypes = (struct TypeDefinition**)malloc(sizeof(struct TypeDefinition*) * typeCount);
     for (uint16_t i = 0; i < typeCount; i++)
     {
         uint32_t bufferIndex = i * sizeof(struct TypeDefinition);
@@ -92,6 +112,19 @@ size_t ReadTypeDefinitionList(struct TypeDefinition*** pTypes, uint16_t* pTypeCo
     }
     free(pBuffer);
     *pTypeCount = typeCount;
+    return readSize;
+}
+
+// Reads a name from the current position in file
+size_t ReadNameFromList(char* pName, uint16_t bufferSize, FILE* f)
+{
+    void* pSizeBuffer = malloc(sizeof(uint8_t));
+    size_t readSize = fread(pSizeBuffer, sizeof(uint8_t), 1, f);
+    uint8_t dataCount;
+    memcpy(&dataCount, pSizeBuffer, sizeof(uint8_t));
+    free(pSizeBuffer);
+    memset(pName, 0, bufferSize);
+    readSize = fread(pName, sizeof(char), dataCount, f);
     return readSize;
 }
 

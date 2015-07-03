@@ -23,6 +23,11 @@ int main(int argc, char** argv)
     for (uint16_t i = 0; i < map.resourceTypeCount; i++)
     {
         printf("Reading %u objects of type %s\n", map.resourceTypes[i]->resourceCount, map.resourceTypes[i]->identifier);
+        for (uint16_t j = 0; j < map.resourceTypes[i]->resourceCount; j++)
+        {
+            struct Resource* pCurrent = map.resourceTypes[i]->resources[j];
+            printf("  %d: %s\n", j + 1, pCurrent->name);
+        }
     }
 
     FreeResourceMap(&map);
