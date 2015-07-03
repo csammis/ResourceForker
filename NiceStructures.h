@@ -68,6 +68,15 @@ void BuildResourceMap(struct ResourceMap* pResourceMap, FILE* f)
                 memset(&currentResource->name, 0, 257);
                 strncpy(currentResource->name, "<< No Name >>", 13);
             }
+
+            // dataOffset is read unaligned so fix it up
+            uint8_t alignBuffer[4];
+            memset(alignBuffer, 0, 4);
+            memcpy(alignBuffer + 1, resourceDefinitionList[j]->dataOffset, 3);
+            uint32_t trueDataOffset = OSReadBigInt32(alignBuffer, 0);
+
+            fseek(f, header.resourceDataOffset + trueDataOffset, SEEK_SET);
+            ReadResourceDataDefinition(&currentResource->data, &currentResource->dataSize, f);
         }
     }
 }

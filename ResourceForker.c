@@ -26,7 +26,7 @@ int main(int argc, char** argv)
         for (uint16_t j = 0; j < map.resourceTypes[i]->resourceCount; j++)
         {
             struct Resource* pCurrent = map.resourceTypes[i]->resources[j];
-            printf("  %d: %s\n", j + 1, pCurrent->name);
+            printf("  %d: %s is %d bytes\n", j + 1, pCurrent->name, pCurrent->dataSize);
         }
     }
 
