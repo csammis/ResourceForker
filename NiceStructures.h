@@ -66,7 +66,7 @@ void BuildResourceMap(struct ResourceMap* pResourceMap, FILE* f)
             else
             {
                 memset(&currentResource->name, 0, 257);
-                strncpy(currentResource->name, "<< No Name >>", 13);
+                snprintf(currentResource->name, 257, "<< No Name (%d) >>", j + 1);
             }
 
             // dataOffset is read unaligned so fix it up
