@@ -18,7 +18,11 @@ bool ReadOptions(struct ResourceForkerOptions* pOptions, int argc, char** argv)
         return false;
     }
 
-    pOptions->writeBinaryData = (strncmp(argv[1], "-w", 2) == 0);
+    if (strncmp(argv[1], "-", 1) == 0 && argc >= 2)
+    {
+        pOptions->writeBinaryData = (strnstr(argv[1], "w", strlen(argv[1])) != NULL);
+    }
+
     pOptions->filename = argv[argc - 1];
 
     return true;
