@@ -16,9 +16,15 @@ int main(int argc, char** argv)
         return 1;
     }
     
+    FILE* f = fopen(options.filename, "rb");
+    if (f == NULL)
+    {
+        printf("! Unable to open '%s'\n", options.filename);
+        return 1;
+    }
+
     printf("Processing file %s\n", options.filename);
 
-    FILE* f = fopen(options.filename, "rb");
     struct ResourceMap map;
     BuildResourceMap(&map, f);
 
