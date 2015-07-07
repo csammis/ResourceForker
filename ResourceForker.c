@@ -34,10 +34,18 @@ int main(int argc, char** argv)
         chdir("resources");
     }
 
-    printf("Reading %u resource types\n", map.resourceTypeCount);
+    if (options.verbose)
+    {
+        printf("Reading %u resource types\n", map.resourceTypeCount);
+    }
+
     for (uint16_t i = 0; i < map.resourceTypeCount; i++)
     {
-        printf("Reading %u objects of type '%s'\n", map.resourceTypes[i]->resourceCount, map.resourceTypes[i]->identifier);
+        if (options.verbose)
+        {
+            printf("Reading %u objects of type '%s'\n", map.resourceTypes[i]->resourceCount, map.resourceTypes[i]->identifier);
+        }
+
         if (options.writeBinaryData)
         {
             mkdir(map.resourceTypes[i]->identifier, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -47,7 +55,10 @@ int main(int argc, char** argv)
         for (uint16_t j = 0; j < map.resourceTypes[i]->resourceCount; j++)
         {
             struct Resource* pCurrent = map.resourceTypes[i]->resources[j];
-            printf("  %d: %s is %d bytes\n", j + 1, pCurrent->name, pCurrent->dataSize);
+            if (options.verbose)
+            {
+                printf("  %d: %s is %d bytes\n", j + 1, pCurrent->name, pCurrent->dataSize);
+            }
 
             if (options.writeBinaryData)
             {
