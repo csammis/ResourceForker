@@ -32,49 +32,40 @@ int main(int argc, char** argv)
     {
         mkdir("resources", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
         chdir("resources");
+
+        for (uint16_t i = 0; i < map.resourceTypeCount; i++)
+        {
+            mkdir(map.resourceTypes[i]->identifier, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+            chdir(map.resourceTypes[i]->identifier);
+            for (uint16_t j = 0; j < map.resourceTypes[i]->resourceCount; j++)
+            {
+                struct Resource* pCurrent = map.resourceTypes[i]->resources[j];
+
+                //cstodo still buggy when there are multiple resources with the same type / name
+                FILE* writer = fopen(pCurrent->name, "wb");
+                fwrite(pCurrent->data, pCurrent->dataSize, 1, writer);
+                fclose(writer);
+
+            }
+            chdir("..");
+        }
     }
 
     if (options.verbose)
     {
         printf("Reading %u resource types\n", map.resourceTypeCount);
-    }
-
-    for (uint16_t i = 0; i < map.resourceTypeCount; i++)
-    {
-        if (options.verbose)
+        for (uint16_t i = 0; i < map.resourceTypeCount; i++)
         {
             printf("Reading %u objects of type '%s'\n", map.resourceTypes[i]->resourceCount, map.resourceTypes[i]->identifier);
-        }
 
-        if (options.writeBinaryData)
-        {
-            mkdir(map.resourceTypes[i]->identifier, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-            chdir(map.resourceTypes[i]->identifier);
-        }
-
-        for (uint16_t j = 0; j < map.resourceTypes[i]->resourceCount; j++)
-        {
-            struct Resource* pCurrent = map.resourceTypes[i]->resources[j];
-            if (options.verbose)
+            for (uint16_t j = 0; j < map.resourceTypes[i]->resourceCount; j++)
             {
+                struct Resource* pCurrent = map.resourceTypes[i]->resources[j];
                 printf("  %d: %s is %d bytes\n", j + 1, pCurrent->name, pCurrent->dataSize);
             }
-
-            if (options.writeBinaryData)
-            {
-                //cstodo still buggy when there are multiple resources with the same type / name
-                FILE* writer = fopen(pCurrent->name, "wb");
-                fwrite(pCurrent->data, pCurrent->dataSize, 1, writer);
-                fclose(writer);
-            }
-        }
-
-        if (options.writeBinaryData)
-        {
-            chdir("..");
         }
     }
-
+    
     FreeResourceMap(&map);
     fclose(f);
     return 0;
