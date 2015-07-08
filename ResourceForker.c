@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "Options.h"
+#include "dissect/Snd.h"
 
 int main(int argc, char** argv)
 {
@@ -63,6 +64,18 @@ int main(int argc, char** argv)
                 struct Resource* pCurrent = map.resourceTypes[i]->resources[j];
                 printf("  %d: %s is %d bytes\n", j + 1, pCurrent->name, pCurrent->dataSize);
             }
+        }
+    }
+
+    if (options.dissectKnownTypes)
+    {
+        for (uint16_t i = 0; i < map.resourceTypeCount; i++)
+        {
+            if (strncmp(map.resourceTypes[i]->identifier, "snd ", 4) == 0)
+            {
+                DissectSound(map.resourceTypes[i]);
+            }
+            else continue;
         }
     }
     
