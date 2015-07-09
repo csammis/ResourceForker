@@ -3,14 +3,7 @@
 
 #include "../NiceStructures.h"
 #include <stdbool.h>
-
-void Indent(int spaces)
-{
-    for (int i = 0; i < spaces; i++)
-    {
-        printf(" ");
-    }
-}
+#include "../Common.h"
 
 void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset)
 {
@@ -34,8 +27,8 @@ void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset)
     // +2 for snthID which is unused 38
     uint16_t sampleSize = OSReadBigInt16(pResource->data, offset + 40);
 
-    Indent(8); printf("Frame count: 0x%08x\n", frameCount);
-    Indent(8); printf("AIFF sample rate: %Lf\n", aiffSampleRate);
+    Indent(8); printf("Frame count: %d\n", frameCount);
+    Indent(8); printf("AIFF sample rate: %Lf Hz\n", aiffSampleRate);
     Indent(8); printf("Compression format: ");
     switch (compressionID)
     {
@@ -58,6 +51,7 @@ void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset)
             printf("!!! unrecognized");
     }
     printf("\n");
+    Indent(8); printf("Packet size: %d\n", packetSize);
     Indent(8); printf("Original sample size: %d\n", sampleSize);
 }
 
@@ -119,10 +113,10 @@ void DissectSingleSoundResource(struct Resource* pResource)
 {
     printf("Dissecting named resource '%s'\n", pResource->name);
     Indent(2); printf("Sound Resource Header\n");
-    Indent(4); printf("Format Type: 0x%04x\n", OSReadBigInt16(pResource->data, 0));
+    Indent(4); printf("Format Type: %d\n", OSReadBigInt16(pResource->data, 0));
     
     uint16_t dataTypeCount = OSReadBigInt16(pResource->data, 2);
-    Indent(4); printf("Number of data types: 0x%04x\n", dataTypeCount);
+    Indent(4); printf("Number of data types: %d\n", dataTypeCount);
 
     uint16_t offset = 4;
     for (uint16_t i = 0; i < dataTypeCount; i++)
