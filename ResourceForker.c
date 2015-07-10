@@ -78,7 +78,7 @@ int main(int argc, char** argv)
             {
                 mkdir("snd ", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
                 chdir("snd ");
-                DissectSound(map.resourceTypes[i]);
+                DissectSound(map.resourceTypes[i], options.verbose);
                 chdir("..");
             }
             else if (strncmp(map.resourceTypes[i]->identifier, "icl8", 4) == 0)

@@ -98,7 +98,7 @@ uint32_t IMA4_Decode(struct Resource* pResource, uint32_t offset, uint32_t frame
     return outIndex;
 }
 
-void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset)
+void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset, bool verbose)
 {
     uint32_t frameCount = OSReadBigInt32(pResource->data, offset);
     uint8_t aiffBuffer[10];
@@ -120,17 +120,21 @@ void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset)
     // +2 for snthID which is unused 38
     uint16_t sampleSize = OSReadBigInt16(pResource->data, offset + 40);
 
-    Indent(8); printf("Frame count: %d\n", frameCount);
-    Indent(8); printf("AIFF sample rate: %Lf Hz\n", aiffSampleRate);
-    Indent(8); printf("Compression format: ");
+    if (verbose)
+    {
+        Indent(8); printf("Frame count: %d\n", frameCount);
+        Indent(8); printf("AIFF sample rate: %Lf Hz\n", aiffSampleRate);
+        Indent(8); printf("Compression format: ");
+    }
 
     switch (compressionID)
     {
         case -2:
-            printf("variable-rate");
+            if (verbose) printf("variable-rate\n");
             break;
         case -1:
-            printf("%s", compressionFormat);
+            if (verbose) printf("%s\n", compressionFormat);
+
             if (strncmp(compressionFormat, "ima4", 4) == 0)
             {
                 short* outputBuffer = NULL;
@@ -156,23 +160,26 @@ void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset)
             }
             break;
         case 0:
-            printf("uncompressed");
+            if (verbose) printf("uncompressed\n");
             break;
         case 3:
-            printf("3:1");
+            if (verbose) printf("3:1\n");
             break;
         case 4:
-            printf("6:1");
+            if (verbose) printf("6:1\n");
             break;
         default:
-            printf("!!! unrecognized");
+            printf("!!! unrecognized compression\n");
     }
-    printf("\n");
-    Indent(8); printf("Packet size: %d\n", packetSize);
-    Indent(8); printf("Original sample size: %d\n", sampleSize);
+
+    if (verbose)
+    {
+        Indent(8); printf("Packet size: %d\n", packetSize);
+        Indent(8); printf("Original sample size: %d\n", sampleSize);
+    }
 }
 
-void DissectSoundHeader(struct Resource* pResource, uint32_t offset)
+void DissectSoundHeader(struct Resource* pResource, uint32_t offset, bool verbose)
 {
     uint32_t dataPointer = OSReadBigInt32(pResource->data, offset);
     uint32_t numChannels = OSReadBigInt32(pResource->data, offset + 4);
@@ -182,27 +189,33 @@ void DissectSoundHeader(struct Resource* pResource, uint32_t offset)
     uint8_t encoding = (uint8_t)*(pResource->data + offset + 20);
     uint8_t baseFrequency = (uint8_t)*(pResource->data + offset + 21);
 
-    Indent(8); printf("Channels: %d\n", numChannels);
-    Indent(8); printf("Sample rate: 0x%08x\n", sampleRate);
+    if (verbose)
+    {
+        Indent(8); printf("Channels: %d\n", numChannels);
+        Indent(8); printf("Sample rate: 0x%08x\n", sampleRate);
+    }
 
     switch (encoding)
     {
         case 0x00:
-            Indent(8); printf("*** Loop start: 0x%08x to loop end: 0x%08x\n", loopStart, loopEnd);
-            Indent(8); printf("*** Base frequency: 0x%02x\n", baseFrequency);
+            if (verbose)
+            {
+                Indent(8); printf("*** Loop start: 0x%08x to loop end: 0x%08x\n", loopStart, loopEnd);
+                Indent(8); printf("*** Base frequency: 0x%02x\n", baseFrequency);
+            }
             break;
         case 0xFE:
-            DissectCompressedSoundHeader(pResource, offset + 22);
+            DissectCompressedSoundHeader(pResource, offset + 22, verbose);
             break;
         case 0xFF:
             Indent(8); printf("!!! Extended sound header, not sure what this is\n");
             break;
         default:
-            Indent(8); printf("!! Unrecognized sound header encoding: 0x%02x\n", encoding);
+            Indent(8); printf("!!! Unrecognized sound header encoding: 0x%02x\n", encoding);
     }
 }
 
-void DissectSingleSoundCommand(struct Resource* pResource, uint16_t rawCommand, uint16_t param1, uint32_t param2)
+void DissectSingleSoundCommand(struct Resource* pResource, uint16_t rawCommand, uint16_t param1, uint32_t param2, bool verbose)
 {
     bool hasAssociatedSoundData = ((rawCommand & 0x8000) != 0);
     uint16_t command = (rawCommand & 0x7FFF);
@@ -210,40 +223,60 @@ void DissectSingleSoundCommand(struct Resource* pResource, uint16_t rawCommand, 
     switch (command)
     {
         case 0x51:
-            Indent(6); printf("bufferCmd");
+            if (verbose)
+            {
+                Indent(6); printf("bufferCmd");
+            }
             if (hasAssociatedSoundData == false)
             {
-                printf(" with sound header located outside resource at 0x%08x\n", param2);
+                if (verbose)
+                    printf(" with sound header located outside resource at 0x%08x\n", param2);
             }
             else
             {
-                printf(" with sound header located at offset 0x%08x\n", param2);
-                DissectSoundHeader(pResource, param2);
+                if (verbose)
+                    printf(" with sound header located at offset 0x%08x\n", param2);
+                DissectSoundHeader(pResource, param2, verbose);
             }
             break;
         default:
-            Indent(6); printf("!!! Unrecognized sound command: 0x%04x (param1: 0x%04x param2: 0x%08x)\n", command, param1, param2);
+            if (verbose)
+            {
+                Indent(6); printf("!!! Unrecognized sound command: 0x%04x (param1: 0x%04x param2: 0x%08x)\n", command, param1, param2);
+            }
     }
 }
 
-void DissectSingleSoundResource(struct Resource* pResource)
+void DissectSingleSoundResource(struct Resource* pResource, bool verbose)
 {
-    printf("Dissecting named resource '%s'\n", pResource->name);
-    Indent(2); printf("Sound Resource Header\n");
-    Indent(4); printf("Format Type: %d\n", OSReadBigInt16(pResource->data, 0));
+    if (verbose)
+    {
+        printf("Dissecting named resource '%s'\n", pResource->name);
+        Indent(2); printf("Sound Resource Header\n");
+        Indent(4); printf("Format Type: %d\n", OSReadBigInt16(pResource->data, 0));
+    }
     
     uint16_t dataTypeCount = OSReadBigInt16(pResource->data, 2);
-    Indent(4); printf("Number of data types: %d\n", dataTypeCount);
+    if (verbose)
+    {
+        Indent(4); printf("Number of data types: %d\n", dataTypeCount);
+    }
 
     uint16_t offset = 4;
     for (uint16_t i = 0; i < dataTypeCount; i++)
     {
-        Indent(6); printf("Data type: 0x%04x\n", OSReadBigInt16(pResource->data, offset));
-        Indent(6); printf("Initialization options: 0x%08x\n", OSReadBigInt32(pResource->data, offset + 2));
+        if (verbose)
+        {
+            Indent(6); printf("Data type: 0x%04x\n", OSReadBigInt16(pResource->data, offset));
+            Indent(6); printf("Initialization options: 0x%08x\n", OSReadBigInt32(pResource->data, offset + 2));
+        }
         offset += 6;
     }
 
-    Indent(2); printf("Sound Commands\n");
+    if (verbose)
+    {
+        Indent(2); printf("Sound Commands\n");
+    }
     uint16_t commandCount = OSReadBigInt16(pResource->data, offset);
     offset += 2;
     for (uint16_t i = 0; i < commandCount; i++)
@@ -252,17 +285,20 @@ void DissectSingleSoundResource(struct Resource* pResource)
         uint16_t param1 = OSReadBigInt16(pResource->data, offset + 2);
         uint32_t param2 = OSReadBigInt32(pResource->data, offset + 4);
 
-        Indent(4); printf("Command %d:\n", i + 1);
-        DissectSingleSoundCommand(pResource, command, param1, param2);
+        if (verbose)
+        {
+            Indent(4); printf("Command %d:\n", i + 1);
+        }
+        DissectSingleSoundCommand(pResource, command, param1, param2, verbose);
         offset += 8;
     }
 }
 
-void DissectSound(struct ResourceType* pResourceType)
+void DissectSound(struct ResourceType* pResourceType, bool verbose)
 {
     for (uint16_t i = 0; i < pResourceType->resourceCount; i++)
     {
-        DissectSingleSoundResource(pResourceType->resources[i]);
+        DissectSingleSoundResource(pResourceType->resources[i], verbose);
     }
 }
 
