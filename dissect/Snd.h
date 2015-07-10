@@ -203,15 +203,16 @@ void DissectSoundHeader(struct Resource* pResource, uint32_t offset, bool verbos
                 Indent(8); printf("*** Loop start: 0x%08x to loop end: 0x%08x\n", loopStart, loopEnd);
                 Indent(8); printf("*** Base frequency: 0x%02x\n", baseFrequency);
             }
+            printf("!!! Could not extract 'snd ' resource %s: Uncompressed sound header\n", pResource->name);
             break;
         case 0xFE:
             DissectCompressedSoundHeader(pResource, offset + 22, verbose);
             break;
         case 0xFF:
-            Indent(8); printf("!!! Extended sound header, not sure what this is\n");
+            printf("!!! Could not extract 'snd ' resource %s: Extended sound header, not sure what this is\n", pResource->name);
             break;
         default:
-            Indent(8); printf("!!! Unrecognized sound header encoding: 0x%02x\n", encoding);
+            printf("!!! Could not extract 'snd ' resource %s: Unrecognized sound header encoding: 0x%02x\n", pResource->name, encoding);
     }
 }
 
