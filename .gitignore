@@ -1,4 +1,5 @@
 *.out
 ResourceForker
 *.rfork
+*.bmp
 resources/

@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include "Options.h"
 #include "dissect/Snd.h"
+#include "dissect/icl8.h"
 
 int main(int argc, char** argv)
 {
@@ -74,6 +75,10 @@ int main(int argc, char** argv)
             if (strncmp(map.resourceTypes[i]->identifier, "snd ", 4) == 0)
             {
                 DissectSound(map.resourceTypes[i]);
+            }
+            else if (strncmp(map.resourceTypes[i]->identifier, "icl8", 4) == 0)
+            {
+                DissectIcl8(map.resourceTypes[i]);
             }
             else continue;
         }
