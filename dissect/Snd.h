@@ -124,8 +124,6 @@ void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset)
     Indent(8); printf("AIFF sample rate: %Lf Hz\n", aiffSampleRate);
     Indent(8); printf("Compression format: ");
 
-    short* outputBuffer = NULL;
-    uint32_t outputBufferCount = 0;
     switch (compressionID)
     {
         case -2:
@@ -135,7 +133,26 @@ void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset)
             printf("%s", compressionFormat);
             if (strncmp(compressionFormat, "ima4", 4) == 0)
             {
-                outputBufferCount = IMA4_Decode(pResource, offset + 42, frameCount, &outputBuffer);
+                short* outputBuffer = NULL;
+                uint32_t outputBufferCount = IMA4_Decode(pResource, offset + 42, frameCount, &outputBuffer);
+
+                uint32_t nameSize = strlen(pResource->name) + 5;
+                char* pOutName = malloc(nameSize);
+                memset(pOutName, 0, nameSize);
+                strncpy(pOutName, pResource->name, strlen(pResource->name));
+                strncpy(pOutName + strlen(pResource->name), ".raw", 4);
+                FILE* rawout = fopen(pOutName, "wb");
+                fwrite(outputBuffer, sizeof(short), outputBufferCount, rawout);
+                fclose(rawout);
+                
+                char txtBuffer[513];
+                memset(&txtBuffer, 0, 513);
+                snprintf(txtBuffer, 512, "%s.raw is uncompressed signed 16bit PCM, mono, at a bitrate of %Lf Hz\n", pResource->name, aiffSampleRate);
+                strncpy(pOutName + strlen(pResource->name), ".txt", 4);
+                FILE* txtout = fopen(pOutName, "w");
+                fwrite(&txtBuffer, strlen(txtBuffer), 1, txtout);
+                fclose(txtout);
+                free(outputBuffer);
             }
             break;
         case 0:
@@ -153,20 +170,6 @@ void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset)
     printf("\n");
     Indent(8); printf("Packet size: %d\n", packetSize);
     Indent(8); printf("Original sample size: %d\n", sampleSize);
-
-    if (outputBuffer != NULL)
-    {
-        uint32_t nameSize = strlen(pResource->name) + 5;
-        char* pOutName = malloc(nameSize);
-        memset(pOutName, 0, nameSize);
-        strncpy(pOutName, pResource->name, strlen(pResource->name));
-        strncpy(pOutName + strlen(pResource->name), ".out", 4);
-        printf("Writing output buffer as raw signed 16bit PCM to %s\n", pOutName);
-        FILE* out = fopen(pOutName, "wb");
-        fwrite(outputBuffer, sizeof(short), outputBufferCount, out);
-        fclose(out);
-        free(outputBuffer);
-    }
 }
 
 void DissectSoundHeader(struct Resource* pResource, uint32_t offset)

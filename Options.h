@@ -20,6 +20,12 @@ void PrintUsage()
     printf("\td: Dump the individual resources as binary datafiles to the 'dump' subdirectory\n");
     printf("\te: Extract known resource types and write datafiles to the 'resources' subdirectory\n");
     printf("\th, ?: Display usage\n");
+
+    printf("Known types (extracted with -e):\n");
+    printf("\t'icl8', extracted as 24bpp uncompressed BMPs\n");
+    printf("\t'snd ', depends on compression.\n");
+    printf("\t\tIMA4: extracted as raw signed 16bit PCM with a descriptor file\n");
+    printf("\t\tOther: not extracted\n");
 }
 
 bool ReadOptions(struct ResourceForkerOptions* pOptions, int argc, char** argv)
