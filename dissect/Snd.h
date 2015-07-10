@@ -4,6 +4,99 @@
 #include "../NiceStructures.h"
 #include <stdbool.h>
 #include "../Common.h"
+#include <limits.h>
+
+// IMA4_Decode cobbled together from:
+// * http://wiki.multimedia.cx/index.php?title=IMA_ADPCM
+// * https://devforums.apple.com/message/10678#10678
+
+int ima_index_table[16] = {
+  -1, -1, -1, -1, 2, 4, 6, 8,
+  -1, -1, -1, -1, 2, 4, 6, 8
+};
+
+int ima_step_table[89] = { 
+  7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 
+  19, 21, 23, 25, 28, 31, 34, 37, 41, 45, 
+  50, 55, 60, 66, 73, 80, 88, 97, 107, 118, 
+  130, 143, 157, 173, 190, 209, 230, 253, 279, 307,
+  337, 371, 408, 449, 494, 544, 598, 658, 724, 796,
+  876, 963, 1060, 1166, 1282, 1411, 1552, 1707, 1878, 2066, 
+  2272, 2499, 2749, 3024, 3327, 3660, 4026, 4428, 4871, 5358,
+  5894, 6484, 7132, 7845, 8630, 9493, 10442, 11487, 12635, 13899, 
+  15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767 
+};
+
+void ClampStepIndex(int* pValue)
+{
+    int value = *pValue;
+    if (value > 88) *pValue = 88;
+    if (value < 0)  *pValue = 0;
+}
+
+void ClampSigned16BitPCM(int* pValue)
+{
+    int value = *pValue;
+    if (value >  32767) *pValue =  32767;
+    if (value < -32768) *pValue = -32768;
+}
+
+uint32_t IMA4_Decode(struct Resource* pResource, uint32_t offset, uint32_t frameCount, short** outputBuffer)
+{
+    // 32 data bytes per frame, two samples per byte
+    short* output = (short*)malloc(sizeof(uint16_t) * frameCount * 64);
+    uint32_t outIndex = 0;
+    for (uint32_t i = 0; i < frameCount; i++)
+    {
+        uint16_t preamble = OSReadBigInt16(pResource->data, offset + (i * 34));
+        int predictor = preamble & 0xFF80;
+        if (predictor & 0x8000)
+        {
+            predictor |= 0xFFFF0000;
+        }
+        int step_index = preamble & 0x007F;
+        int step, nibble, diff;
+
+        // Next 32 bytes are the ADPCM nibbles
+        for (uint32_t j = 2; j < 34; j++)
+        {
+            uint8_t byte = pResource->data[offset + (j + (i * 34))];
+
+            nibble = byte & 0x0F; // Lo nibble
+            ClampStepIndex(&step_index);
+            step = ima_step_table[step_index];
+            step_index += ima_index_table[nibble];
+            diff = step >> 3;
+            if (nibble & 0x04) diff += step;
+            if (nibble & 0x02) diff += (step >> 1);
+            if (nibble & 0x01) diff += (step >> 2);
+            if (nibble & 0x08)
+                predictor -= diff;
+            else
+                predictor += diff;
+            ClampSigned16BitPCM(&predictor);
+            output[outIndex++] = predictor;
+
+            nibble = byte >> 4; // Hi nibble
+            ClampStepIndex(&step_index);
+            step = ima_step_table[step_index];
+            step_index += ima_index_table[nibble];
+            diff = step >> 3;
+            if (nibble & 0x04) diff += step;
+            if (nibble & 0x02) diff += (step >> 1);
+            if (nibble & 0x01) diff += (step >> 2);
+            if (nibble & 0x08)
+                predictor -= diff;
+            else
+                predictor += diff;
+            ClampSigned16BitPCM(&predictor);
+            output[outIndex++] = predictor;
+        }
+    }
+
+    *outputBuffer = output;
+    return outIndex;
+}
 
 void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset)
 {
@@ -30,6 +123,9 @@ void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset)
     Indent(8); printf("Frame count: %d\n", frameCount);
     Indent(8); printf("AIFF sample rate: %Lf Hz\n", aiffSampleRate);
     Indent(8); printf("Compression format: ");
+
+    short* outputBuffer = NULL;
+    uint32_t outputBufferCount = 0;
     switch (compressionID)
     {
         case -2:
@@ -37,6 +133,10 @@ void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset)
             break;
         case -1:
             printf("%s", compressionFormat);
+            if (strncmp(compressionFormat, "ima4", 4) == 0)
+            {
+                outputBufferCount = IMA4_Decode(pResource, offset + 42, frameCount, &outputBuffer);
+            }
             break;
         case 0:
             printf("uncompressed");
@@ -53,6 +153,20 @@ void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset)
     printf("\n");
     Indent(8); printf("Packet size: %d\n", packetSize);
     Indent(8); printf("Original sample size: %d\n", sampleSize);
+
+    if (outputBuffer != NULL)
+    {
+        uint32_t nameSize = strlen(pResource->name) + 5;
+        char* pOutName = malloc(nameSize);
+        memset(pOutName, 0, nameSize);
+        strncpy(pOutName, pResource->name, strlen(pResource->name));
+        strncpy(pOutName + strlen(pResource->name), ".out", 4);
+        printf("Writing output buffer as raw signed 16bit PCM to %s\n", pOutName);
+        FILE* out = fopen(pOutName, "wb");
+        fwrite(outputBuffer, sizeof(short), outputBufferCount, out);
+        fclose(out);
+        free(outputBuffer);
+    }
 }
 
 void DissectSoundHeader(struct Resource* pResource, uint32_t offset)
