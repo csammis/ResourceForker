@@ -32,8 +32,8 @@ int main(int argc, char** argv)
 
     if (options.writeBinaryData)
     {
-        mkdir("resources", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        chdir("resources");
+        mkdir("dump", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        chdir("dump");
 
         for (uint16_t i = 0; i < map.resourceTypeCount; i++)
         {
@@ -68,20 +68,28 @@ int main(int argc, char** argv)
         }
     }
 
-    if (options.dissectKnownTypes)
+    if (options.extractKnownTypes)
     {
+        mkdir("resources", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        chdir("resources");
         for (uint16_t i = 0; i < map.resourceTypeCount; i++)
         {
             if (strncmp(map.resourceTypes[i]->identifier, "snd ", 4) == 0)
             {
+                mkdir("snd ", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+                chdir("snd ");
                 DissectSound(map.resourceTypes[i]);
+                chdir("..");
             }
             else if (strncmp(map.resourceTypes[i]->identifier, "icl8", 4) == 0)
             {
+                mkdir("icl8", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+                chdir("icl8");
                 DissectIcl8(map.resourceTypes[i]);
             }
             else continue;
         }
+        chdir("..");
     }
     
     FreeResourceMap(&map);

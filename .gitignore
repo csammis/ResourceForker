@@ -3,3 +3,4 @@ ResourceForker
 *.rfork
 *.bmp
 resources/
+dump/

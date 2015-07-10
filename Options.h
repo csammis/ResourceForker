@@ -9,7 +9,7 @@ struct ResourceForkerOptions
     char* filename;
     bool writeBinaryData;
     bool verbose;
-    bool dissectKnownTypes;
+    bool extractKnownTypes;
 };
 
 void PrintUsage()
@@ -17,8 +17,8 @@ void PrintUsage()
     printf("Usage: ResourceForker -[<flags>] <filename>\n");
     printf("Supported flags:\n");
     printf("\tv: Verbose output\n");
-    printf("\tw: Write the individual resources as binary datafiles to the 'resources' subdirectory\n");
-    printf("\td: Dissect known resource types and print results to stdout\n");
+    printf("\td: Dump the individual resources as binary datafiles to the 'dump' subdirectory\n");
+    printf("\te: Extract known resource types and write datafiles to the 'resources' subdirectory\n");
     printf("\th, ?: Display usage\n");
 }
 
@@ -40,13 +40,13 @@ bool ReadOptions(struct ResourceForkerOptions* pOptions, int argc, char** argv)
     {
         int length = strlen(argv[1]);
 
-        pOptions->writeBinaryData = (strnstr(argv[1], "w", length) != NULL);
+        pOptions->writeBinaryData = (strnstr(argv[1], "d", length) != NULL);
         pOptions->verbose = (strnstr(argv[1], "v", length) != NULL);
-        pOptions->dissectKnownTypes = (strnstr(argv[1], "d", length) != NULL);
+        pOptions->extractKnownTypes = (strnstr(argv[1], "e", length) != NULL);
 
         if (pOptions->writeBinaryData == false
                 && pOptions->verbose == false
-                && pOptions->dissectKnownTypes == false)
+                && pOptions->extractKnownTypes == false)
         {
             printf("Unknown flags specified: %s\n", argv[1] + 1);
             return false;
