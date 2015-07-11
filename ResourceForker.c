@@ -76,24 +76,30 @@ int main(int argc, char** argv)
         {
             if (strncmp(map.resourceTypes[i]->identifier, "snd ", 4) == 0)
             {
+                printf("Extracting 'snd '...");
                 mkdir("snd ", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
                 chdir("snd ");
                 DissectSound(map.resourceTypes[i], options.verbose);
                 chdir("..");
+                printf("done\n");
             }
             else if (strncmp(map.resourceTypes[i]->identifier, "icl8", 4) == 0)
             {
+                printf("Extracting 'icl8'...");
                 mkdir("icl8", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
                 chdir("icl8");
                 DissectIcl8(map.resourceTypes[i]);
                 chdir("..");
+                printf("done\n");
             }
             else if (strncmp(map.resourceTypes[i]->identifier, "ICN#", 4) == 0)
             {
+                printf("Extracting 'ICN#'...");
                 mkdir("ICN#", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
                 chdir("ICN#");
                 DissectICN(map.resourceTypes[i]);
                 chdir("..");
+                printf("done\n");
             }
             else continue;
         }
