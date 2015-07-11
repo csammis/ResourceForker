@@ -122,4 +122,30 @@ void DissectIcl8(struct ResourceType* pResourceType)
     }
 }
 
+void DissectICN(struct ResourceType* pResourceType)
+{
+    // These are 1bpp 32x32 icons so create 8bpp icons from them and pass to the icl8 extractor
+    for (uint16_t i = 0; i < pResourceType->resourceCount; i++)
+    {
+        struct Resource* p8bppIcon = (struct Resource*)malloc(sizeof(struct Resource));
+        memset(p8bppIcon->name, 0, 257);
+        memcpy(p8bppIcon->name, pResourceType->resources[i]->name, strlen(pResourceType->resources[i]->name));
+        p8bppIcon->dataSize = 4 * pResourceType->resources[i]->dataSize;
+        p8bppIcon->data = malloc(p8bppIcon->dataSize);
+        uint16_t index = 0;
+        for (uint8_t j = 0; j < 128; j++)
+        {
+            uint8_t data = pResourceType->resources[i]->data[j];
+            for (char b = 7; b >= 0; b--)
+            {
+                p8bppIcon->data[index++] = ((data & (1 << b)) != 0) ? 0x00 : 0xFF;
+            }
+        }
+
+        ConvertResourceToBitmap(p8bppIcon);
+        free(p8bppIcon->data);
+        free(p8bppIcon);
+    }
+}
+
 #endif

@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include "Options.h"
 #include "dissect/Snd.h"
-#include "dissect/icl8.h"
+#include "dissect/Bitmaps.h"
 
 int main(int argc, char** argv)
 {
@@ -86,6 +86,14 @@ int main(int argc, char** argv)
                 mkdir("icl8", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
                 chdir("icl8");
                 DissectIcl8(map.resourceTypes[i]);
+                chdir("..");
+            }
+            else if (strncmp(map.resourceTypes[i]->identifier, "ICN#", 4) == 0)
+            {
+                mkdir("ICN#", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+                chdir("ICN#");
+                DissectICN(map.resourceTypes[i]);
+                chdir("..");
             }
             else continue;
         }
