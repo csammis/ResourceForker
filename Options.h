@@ -26,6 +26,7 @@ void PrintUsage()
     printf("\t'snd ', depends on compression.\n");
     printf("\t\tIMA4: extracted as raw signed 16bit PCM with a descriptor file\n");
     printf("\t\tOther: not extracted\n");
+    printf("\t'TEXT', extracted with CR-LF line endings\n");
 }
 
 bool ReadOptions(struct ResourceForkerOptions* pOptions, int argc, char** argv)
