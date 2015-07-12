@@ -9,6 +9,7 @@
 #include "Options.h"
 #include "dissect/Snd.h"
 #include "dissect/Bitmaps.h"
+#include "dissect/Text.h"
 
 int main(int argc, char** argv)
 {
@@ -98,6 +99,15 @@ int main(int argc, char** argv)
                 mkdir("ICN#", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
                 chdir("ICN#");
                 DissectICN(map.resourceTypes[i]);
+                chdir("..");
+                printf("done\n");
+            }
+            else if (strncmp(map.resourceTypes[i]->identifier, "TEXT", 4) == 0)
+            {
+                printf("Extracting 'TEXT'...");
+                mkdir("TEXT", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+                chdir("TEXT");
+                DissectTEXT(map.resourceTypes[i]);
                 chdir("..");
                 printf("done\n");
             }
