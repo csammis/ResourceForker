@@ -16,6 +16,7 @@ Supported flags:
 	h, ?: Display usage
 Known types (extracted with -e):
 	'icl8', extracted as 24bpp uncompressed BMPs
+	'ICN#', extracted as 24bpp uncompressed BMPs
 	'snd ', depends on compression.
 		IMA4: extracted as raw signed 16bit PCM with a descriptor file
 		Other: not extracted

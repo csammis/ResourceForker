@@ -23,6 +23,7 @@ void PrintUsage()
 
     printf("Known types (extracted with -e):\n");
     printf("\t'icl8', extracted as 24bpp uncompressed BMPs\n");
+    printf("\t'ICN#', extracted as 24bpp uncompressed BMPs\n");
     printf("\t'snd ', depends on compression.\n");
     printf("\t\tIMA4: extracted as raw signed 16bit PCM with a descriptor file\n");
     printf("\t\tOther: not extracted\n");
