@@ -11,6 +11,8 @@
 #include "dissect/Bitmaps.h"
 #include "dissect/Text.h"
 
+#define MKDIR_FLAGS S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH
+
 int main(int argc, char** argv)
 {
     struct ResourceForkerOptions options;
@@ -105,9 +107,18 @@ int main(int argc, char** argv)
             else if (strncmp(map.resourceTypes[i]->identifier, "TEXT", 4) == 0)
             {
                 printf("Extracting 'TEXT'...");
-                mkdir("TEXT", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+                mkdir("TEXT", MKDIR_FLAGS);
                 chdir("TEXT");
                 DissectTEXT(map.resourceTypes[i]);
+                chdir("..");
+                printf("done\n");
+            }
+            else if (strncmp(map.resourceTypes[i]->identifier, "STR#", 4) == 0)
+            {
+                printf("Extracting 'STR#'...");
+                mkdir("STR#", MKDIR_FLAGS);
+                chdir("STR#");
+                DissectSTR(map.resourceTypes[i]);
                 chdir("..");
                 printf("done\n");
             }

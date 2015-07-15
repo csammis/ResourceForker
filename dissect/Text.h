@@ -4,6 +4,23 @@
 #include "../NiceStructures.h"
 #include "../Common.h"
 
+#define CR 0x0D
+#define LF 0x0A
+uint8_t CRLF[2] = {CR, LF};
+
+void WriteMacStringToFile(uint8_t* pBuffer, uint32_t length, FILE* out)
+{
+    for (uint32_t i = 0; i < length; i++)
+    {
+        uint8_t byte = pBuffer[i];
+        fwrite(&byte, 1, 1, out);
+        if (byte == CR && (i + 1 == length || pBuffer[i + 1] != LF))
+        {
+            fwrite(CRLF + 1, 1, 1, out);
+        }
+    }
+}
+
 void DissectTEXT(struct ResourceType* pResourceType)
 {
     for (uint16_t i = 0; i < pResourceType->resourceCount; i++)
@@ -11,19 +28,30 @@ void DissectTEXT(struct ResourceType* pResourceType)
         char* filename = CreateFilename(pResourceType->resources[i]->name, ".txt");
 
         FILE* out = fopen(filename, "w");
-        uint8_t lf = 0x0A;
-        uint32_t dataSize = pResourceType->resources[i]->dataSize;
-        for (uint32_t j = 0; j < dataSize; j++)
+        WriteMacStringToFile(pResourceType->resources[i]->data, pResourceType->resources[i]->dataSize, out);
+        fclose(out);
+        ReleaseFilename(filename);
+    }
+}
+
+void DissectSTR(struct ResourceType* pResourceType)
+{
+    for (uint16_t i = 0; i < pResourceType->resourceCount; i++)
+    {
+        char* filename = CreateFilename(pResourceType->resources[i]->name, ".txt");
+
+        FILE* out = fopen(filename, "w");
+        uint16_t stringCount = OSReadBigInt16(pResourceType->resources[i]->data, 0);
+        uint16_t index = 2;
+        for (uint16_t j = 0; j < stringCount; j++)
         {
-            uint8_t byte = pResourceType->resources[i]->data[j];
-            fwrite(&byte, 1, 1, out);
-            if (byte == 0x0D && (pResourceType->resources[i]->data[j + 1] != 0x0A || j + 1 == dataSize))
-            {
-                fwrite(&lf, 1, 1, out);
-            }
+            uint8_t length = pResourceType->resources[i]->data[index];
+            index++;
+            WriteMacStringToFile(pResourceType->resources[i]->data + index, length, out);
+            fwrite(CRLF, 2, 1, out);
+            index += length;
         }
         fclose(out);
-
         ReleaseFilename(filename);
     }
 }
