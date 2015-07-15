@@ -10,8 +10,20 @@
 #include "dissect/Snd.h"
 #include "dissect/Bitmaps.h"
 #include "dissect/Text.h"
+#include "dissect/Symbols.h"
 
 #define MKDIR_FLAGS S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH
+
+#define DISSECT_TYPE(x, y) \
+    if (strncmp(map.resourceTypes[i]->identifier, x, 4) == 0) \
+    { \
+        printf("Extracting '%s'...", x); \
+        mkdir(x, MKDIR_FLAGS); \
+        chdir(x); \
+        y(map.resourceTypes[i]); \
+        chdir(".."); \
+        printf("...done\n"); \
+    }
 
 int main(int argc, char** argv)
 {
@@ -86,52 +98,14 @@ int main(int argc, char** argv)
                 chdir("..");
                 printf("done\n");
             }
-            else if (strncmp(map.resourceTypes[i]->identifier, "icl8", 4) == 0)
-            {
-                printf("Extracting 'icl8'...");
-                mkdir("icl8", MKDIR_FLAGS);
-                chdir("icl8");
-                DissectIcl8(map.resourceTypes[i]);
-                chdir("..");
-                printf("done\n");
-            }
-            else if (strncmp(map.resourceTypes[i]->identifier, "ICN#", 4) == 0)
-            {
-                printf("Extracting 'ICN#'...");
-                mkdir("ICN#", MKDIR_FLAGS);
-                chdir("ICN#");
-                DissectICN(map.resourceTypes[i]);
-                chdir("..");
-                printf("done\n");
-            }
-            else if (strncmp(map.resourceTypes[i]->identifier, "TEXT", 4) == 0)
-            {
-                printf("Extracting 'TEXT'...");
-                mkdir("TEXT", MKDIR_FLAGS);
-                chdir("TEXT");
-                DissectTEXT(map.resourceTypes[i]);
-                chdir("..");
-                printf("done\n");
-            }
-            else if (strncmp(map.resourceTypes[i]->identifier, "STR#", 4) == 0)
-            {
-                printf("Extracting 'STR#'...");
-                mkdir("STR#", MKDIR_FLAGS);
-                chdir("STR#");
-                DissectSTRN(map.resourceTypes[i]);
-                chdir("..");
-                printf("done\n");
-            }
-            else if (strncmp(map.resourceTypes[i]->identifier, "STR ", 4) == 0)
-            {
-                printf("Extracting 'STR '...");
-                mkdir("STR ", MKDIR_FLAGS);
-                chdir("STR ");
-                DissectSTR(map.resourceTypes[i]);
-                chdir("..");
-                printf("done\n");
-            }
-            else continue;
+            
+            DISSECT_TYPE("icl8", DissectIcl8)
+            DISSECT_TYPE("ICN#", DissectICN)
+            DISSECT_TYPE("STR#", DissectSTRN)
+            DISSECT_TYPE("STR ", DissectSTR)
+            DISSECT_TYPE("NAME", DissectNAME)
+            DISSECT_TYPE("TEXT", DissectTEXT)
+            DISSECT_TYPE("dll#", DissectDLLN)
         }
         chdir("..");
     }

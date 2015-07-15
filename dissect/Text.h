@@ -4,10 +4,6 @@
 #include "../NiceStructures.h"
 #include "../Common.h"
 
-#define CR 0x0D
-#define LF 0x0A
-uint8_t CRLF[2] = {CR, LF};
-
 void WriteMacStringToFile(uint8_t* pBuffer, uint32_t length, FILE* out)
 {
     for (uint32_t i = 0; i < length; i++)

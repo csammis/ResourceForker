@@ -3,6 +3,10 @@
 
 #include <stdio.h>
 
+#define CR 0x0D
+#define LF 0x0A
+uint8_t CRLF[2] = {CR, LF};
+
 void Indent(int spaces)
 {
     for (int i = 0; i < spaces; i++)
