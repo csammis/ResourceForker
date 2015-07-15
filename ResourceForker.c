@@ -35,12 +35,12 @@ int main(int argc, char** argv)
 
     if (options.writeBinaryData)
     {
-        mkdir("dump", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        mkdir("dump", MKDIR_FLAGS);
         chdir("dump");
 
         for (uint16_t i = 0; i < map.resourceTypeCount; i++)
         {
-            mkdir(map.resourceTypes[i]->identifier, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+            mkdir(map.resourceTypes[i]->identifier, MKDIR_FLAGS);
             chdir(map.resourceTypes[i]->identifier);
             for (uint16_t j = 0; j < map.resourceTypes[i]->resourceCount; j++)
             {
@@ -73,14 +73,14 @@ int main(int argc, char** argv)
 
     if (options.extractKnownTypes)
     {
-        mkdir("resources", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        mkdir("resources", MKDIR_FLAGS);
         chdir("resources");
         for (uint16_t i = 0; i < map.resourceTypeCount; i++)
         {
             if (strncmp(map.resourceTypes[i]->identifier, "snd ", 4) == 0)
             {
                 printf("Extracting 'snd '...");
-                mkdir("snd ", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+                mkdir("snd ", MKDIR_FLAGS);
                 chdir("snd ");
                 DissectSound(map.resourceTypes[i], options.verbose);
                 chdir("..");
@@ -89,7 +89,7 @@ int main(int argc, char** argv)
             else if (strncmp(map.resourceTypes[i]->identifier, "icl8", 4) == 0)
             {
                 printf("Extracting 'icl8'...");
-                mkdir("icl8", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+                mkdir("icl8", MKDIR_FLAGS);
                 chdir("icl8");
                 DissectIcl8(map.resourceTypes[i]);
                 chdir("..");
@@ -98,7 +98,7 @@ int main(int argc, char** argv)
             else if (strncmp(map.resourceTypes[i]->identifier, "ICN#", 4) == 0)
             {
                 printf("Extracting 'ICN#'...");
-                mkdir("ICN#", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+                mkdir("ICN#", MKDIR_FLAGS);
                 chdir("ICN#");
                 DissectICN(map.resourceTypes[i]);
                 chdir("..");
