@@ -2,16 +2,13 @@
 #define __DISSECT_TEXT_H__
 
 #include "../NiceStructures.h"
+#include "../Common.h"
 
 void DissectTEXT(struct ResourceType* pResourceType)
 {
     for (uint16_t i = 0; i < pResourceType->resourceCount; i++)
     {
-        uint32_t nameSize = strlen(pResourceType->resources[i]->name);
-        char* filename = malloc(nameSize + 5);
-        memset(filename, 0, nameSize + 5);
-        strncpy(filename, pResourceType->resources[i]->name, nameSize);
-        strncpy(filename + nameSize, ".txt", 4);
+        char* filename = CreateFilename(pResourceType->resources[i]->name, ".txt");
 
         FILE* out = fopen(filename, "w");
         uint8_t lf = 0x0A;
@@ -26,6 +23,8 @@ void DissectTEXT(struct ResourceType* pResourceType)
             }
         }
         fclose(out);
+
+        ReleaseFilename(filename);
     }
 }
 

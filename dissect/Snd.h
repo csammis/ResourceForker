@@ -139,23 +139,20 @@ void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset, b
             {
                 short* outputBuffer = NULL;
                 uint32_t outputBufferCount = IMA4_Decode(pResource, offset + 42, frameCount, &outputBuffer);
-
-                uint32_t nameSize = strlen(pResource->name) + 5;
-                char* pOutName = malloc(nameSize);
-                memset(pOutName, 0, nameSize);
-                strncpy(pOutName, pResource->name, strlen(pResource->name));
-                strncpy(pOutName + strlen(pResource->name), ".raw", 4);
+                char* pOutName = CreateFilename(pResource->name, ".raw");
                 FILE* rawout = fopen(pOutName, "wb");
                 fwrite(outputBuffer, sizeof(short), outputBufferCount, rawout);
                 fclose(rawout);
+                ReleaseFilename(pOutName);
                 
                 char txtBuffer[513];
                 memset(&txtBuffer, 0, 513);
                 snprintf(txtBuffer, 512, "%s.raw is uncompressed signed 16bit PCM, mono, at a bitrate of %Lf Hz\n", pResource->name, aiffSampleRate);
-                strncpy(pOutName + strlen(pResource->name), ".txt", 4);
+                pOutName = CreateFilename(pResource->name, ".txt");
                 FILE* txtout = fopen(pOutName, "w");
                 fwrite(&txtBuffer, strlen(txtBuffer), 1, txtout);
                 fclose(txtout);
+                ReleaseFilename(pOutName);
                 free(outputBuffer);
             }
             break;

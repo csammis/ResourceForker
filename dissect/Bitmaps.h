@@ -105,13 +105,11 @@ void ConvertResourceToBitmap(struct Resource* pResource)
         memcpy(pBitmapData + header.dataOffset + (i * 3), &brg, 3);
     }
 
-    char* filename = (char*)malloc(strlen(pResource->name) + 5);
-    memset(filename, 0, strlen(pResource->name) + 5);
-    strncpy(filename, pResource->name, strlen(pResource->name));
-    strncpy(filename + strlen(pResource->name), ".bmp", 4);
+    char* filename = CreateFilename(pResource->name, ".bmp");
     FILE* out = fopen(filename, "wb");
     fwrite(pBitmapData, bitmapSize, 1, out);
     fclose(out);
+    ReleaseFilename(filename);
 }
 
 void DissectIcl8(struct ResourceType* pResourceType)
