@@ -34,7 +34,26 @@ void DissectTEXT(struct ResourceType* pResourceType)
     }
 }
 
+uint8_t DissectSingleSTR(uint8_t* pBuffer, FILE* out)
+{
+    uint8_t length = pBuffer[0];
+    WriteMacStringToFile(pBuffer + 1, length, out);
+    return length + 1;
+}
+
 void DissectSTR(struct ResourceType* pResourceType)
+{
+    for (uint16_t i = 0; i < pResourceType->resourceCount; i++)
+    {
+        char* filename = CreateFilename(pResourceType->resources[i]->name, ".txt");
+        FILE* out = fopen(filename, "w");
+        DissectSingleSTR(pResourceType->resources[i]->data, out);
+        fclose(out);
+        ReleaseFilename(filename);
+    }
+}
+
+void DissectSTRN(struct ResourceType* pResourceType)
 {
     for (uint16_t i = 0; i < pResourceType->resourceCount; i++)
     {
@@ -45,11 +64,8 @@ void DissectSTR(struct ResourceType* pResourceType)
         uint16_t index = 2;
         for (uint16_t j = 0; j < stringCount; j++)
         {
-            uint8_t length = pResourceType->resources[i]->data[index];
-            index++;
-            WriteMacStringToFile(pResourceType->resources[i]->data + index, length, out);
+            index += DissectSingleSTR(pResourceType->resources[i]->data + index, out);
             fwrite(CRLF, 2, 1, out);
-            index += length;
         }
         fclose(out);
         ReleaseFilename(filename);

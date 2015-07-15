@@ -118,6 +118,15 @@ int main(int argc, char** argv)
                 printf("Extracting 'STR#'...");
                 mkdir("STR#", MKDIR_FLAGS);
                 chdir("STR#");
+                DissectSTRN(map.resourceTypes[i]);
+                chdir("..");
+                printf("done\n");
+            }
+            else if (strncmp(map.resourceTypes[i]->identifier, "STR ", 4) == 0)
+            {
+                printf("Extracting 'STR '...");
+                mkdir("STR ", MKDIR_FLAGS);
+                chdir("STR ");
                 DissectSTR(map.resourceTypes[i]);
                 chdir("..");
                 printf("done\n");
