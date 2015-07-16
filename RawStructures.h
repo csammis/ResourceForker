@@ -1,3 +1,5 @@
+// Major thanks for the format documentation from https://github.com/kreativekorp/ksfl/wiki/Macintosh-Resource-File-Format
+
 #ifndef __RAWSTRUCTURES_H__
 #define __RAWSTRUCTURES_H__
 

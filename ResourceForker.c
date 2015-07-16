@@ -1,10 +1,9 @@
-// Major thanks for the format documentation from https://github.com/kreativekorp/ksfl/wiki/Macintosh-Resource-File-Format
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "NiceStructures.h"
 #include <sys/stat.h>
+#include <sys/xattr.h>
 #include <unistd.h>
 #include "Options.h"
 #include "dissect/Snd.h"
@@ -15,15 +14,17 @@
 #define MKDIR_FLAGS S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH
 
 #define DISSECT_TYPE(x, y) \
-    if (strncmp(map.resourceTypes[i]->identifier, x, 4) == 0) \
+    if (strncmp(pMap->resourceTypes[i]->identifier, x, 4) == 0) \
     { \
         printf("Extracting '%s'...", x); \
         mkdir(x, MKDIR_FLAGS); \
         chdir(x); \
-        y(map.resourceTypes[i]); \
+        y(pMap->resourceTypes[i]); \
         chdir(".."); \
         printf("...done\n"); \
     }
+
+void ProcessMap(struct ResourceMap* pMap, struct ResourceForkerOptions* pOptions);
 
 int main(int argc, char** argv)
 {
@@ -32,31 +33,72 @@ int main(int argc, char** argv)
     {
         return 1;
     }
-    
-    FILE* f = fopen(options.filename, "rb");
-    if (f == NULL)
-    {
-        printf("! Unable to open '%s'\n", options.filename);
-        return 1;
-    }
-
-    printf("Processing file %s\n", options.filename);
 
     struct ResourceMap map;
-    BuildResourceMap(&map, f);
 
-    if (options.writeBinaryData)
+    printf("Processing file %s\n", options.filename);
+    if (options.readRawFile == true)
+    {
+        FILE* resourceForkInput = fopen(options.filename, "r");
+        if (resourceForkInput == NULL)
+        {
+            printf("! Unable to open '%s'\n", options.filename);
+            return 1;
+        }
+        BuildResourceMap(&map, resourceForkInput);
+        fclose(resourceForkInput);
+
+        ProcessMap(&map, &options);
+        FreeResourceMap(&map);
+    }
+    else
+    {
+        ssize_t attrSize = getxattr(options.filename, "com.apple.ResourceFork", NULL, 0, 0, 0);
+        if (attrSize == -1)
+        {
+            printf("! Could not open extended attribute 'com.apple.ResourceFork' from %s\n", options.filename);
+            return 1;
+        }
+
+        void* buffer = malloc(attrSize);
+        attrSize = getxattr(options.filename, "com.apple.ResourceFork", buffer, attrSize, 0, 0);
+        char* tmpFilename = CreateFilename(options.filename, ".tmp");
+        FILE* tmp = fopen(tmpFilename, "w");
+        fwrite(buffer, attrSize, 1, tmp);
+        fclose(tmp);
+        free(buffer);
+
+        FILE* resourceForkInput = fopen(tmpFilename, "r");
+        if (resourceForkInput == NULL)
+        {
+            printf("! Unable to open '%s'\n", tmpFilename);
+            return 1;
+        }
+        BuildResourceMap(&map, resourceForkInput);
+        fclose(resourceForkInput);
+        remove(tmpFilename);
+
+        ProcessMap(&map, &options);
+        FreeResourceMap(&map);
+    }
+
+    return 0;
+}
+
+void ProcessMap(struct ResourceMap* pMap, struct ResourceForkerOptions* pOptions)
+{
+    if (pOptions->writeBinaryData)
     {
         mkdir("dump", MKDIR_FLAGS);
         chdir("dump");
 
-        for (uint16_t i = 0; i < map.resourceTypeCount; i++)
+        for (uint16_t i = 0; i < pMap->resourceTypeCount; i++)
         {
-            mkdir(map.resourceTypes[i]->identifier, MKDIR_FLAGS);
-            chdir(map.resourceTypes[i]->identifier);
-            for (uint16_t j = 0; j < map.resourceTypes[i]->resourceCount; j++)
+            mkdir(pMap->resourceTypes[i]->identifier, MKDIR_FLAGS);
+            chdir(pMap->resourceTypes[i]->identifier);
+            for (uint16_t j = 0; j < pMap->resourceTypes[i]->resourceCount; j++)
             {
-                struct Resource* pCurrent = map.resourceTypes[i]->resources[j];
+                struct Resource* pCurrent = pMap->resourceTypes[i]->resources[j];
 
                 //cstodo still buggy when there are multiple resources with the same type / name
                 FILE* writer = fopen(pCurrent->name, "wb");
@@ -68,33 +110,33 @@ int main(int argc, char** argv)
         }
     }
 
-    if (options.verbose)
+    if (pOptions->verbose)
     {
-        printf("Reading %u resource types\n", map.resourceTypeCount);
-        for (uint16_t i = 0; i < map.resourceTypeCount; i++)
+        printf("Reading %u resource types\n", pMap->resourceTypeCount);
+        for (uint16_t i = 0; i < pMap->resourceTypeCount; i++)
         {
-            printf("Reading %u objects of type '%s'\n", map.resourceTypes[i]->resourceCount, map.resourceTypes[i]->identifier);
+            printf("Reading %u objects of type '%s'\n", pMap->resourceTypes[i]->resourceCount, pMap->resourceTypes[i]->identifier);
 
-            for (uint16_t j = 0; j < map.resourceTypes[i]->resourceCount; j++)
+            for (uint16_t j = 0; j < pMap->resourceTypes[i]->resourceCount; j++)
             {
-                struct Resource* pCurrent = map.resourceTypes[i]->resources[j];
+                struct Resource* pCurrent = pMap->resourceTypes[i]->resources[j];
                 printf("  %d: %s is %d bytes\n", j + 1, pCurrent->name, pCurrent->dataSize);
             }
         }
     }
 
-    if (options.extractKnownTypes)
+    if (pOptions->extractKnownTypes)
     {
         mkdir("resources", MKDIR_FLAGS);
         chdir("resources");
-        for (uint16_t i = 0; i < map.resourceTypeCount; i++)
+        for (uint16_t i = 0; i < pMap->resourceTypeCount; i++)
         {
-            if (strncmp(map.resourceTypes[i]->identifier, "snd ", 4) == 0)
+            if (strncmp(pMap->resourceTypes[i]->identifier, "snd ", 4) == 0)
             {
                 printf("Extracting 'snd '...");
                 mkdir("snd ", MKDIR_FLAGS);
                 chdir("snd ");
-                DissectSound(map.resourceTypes[i], options.verbose);
+                DissectSound(pMap->resourceTypes[i], pOptions->verbose);
                 chdir("..");
                 printf("done\n");
             }
@@ -109,8 +151,4 @@ int main(int argc, char** argv)
         }
         chdir("..");
     }
-    
-    FreeResourceMap(&map);
-    fclose(f);
-    return 0;
 }

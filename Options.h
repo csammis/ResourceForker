@@ -10,6 +10,7 @@ struct ResourceForkerOptions
     bool writeBinaryData;
     bool verbose;
     bool extractKnownTypes;
+    bool readRawFile;
 };
 
 void PrintUsage()
@@ -19,6 +20,7 @@ void PrintUsage()
     printf("\tv: Verbose output\n");
     printf("\td: Dump the individual resources as binary datafiles to the 'dump' subdirectory\n");
     printf("\te: Extract known resource types and write datafiles to the 'resources' subdirectory\n");
+    printf("\tr: <filename> is the raw content of a resource fork (see Resource Forks)\n");
     printf("\th, ?: Display usage\n");
 
     printf("Known types (extracted with -e):\n");
@@ -30,6 +32,10 @@ void PrintUsage()
     printf("\t'STR', 'STR#', extracted with CR-LF line endings\n");
     printf("\t'TEXT', extracted with CR-LF line endings\n");
     printf("\t'NAME', 'DLL#', extracted as lists with one signature per line\n");
+
+    printf("File format options:\n");
+    printf("\tThe -r flag is used when <filename> is a raw binary file representing the resource fork of an application.\n");
+    printf("\tWhen -r is not used, ResourceForker will try to read <filename>'s 'com.apple.ResourceFork' extended attribute and analyze that instead.\n");
 }
 
 bool ReadOptions(struct ResourceForkerOptions* pOptions, int argc, char** argv)
@@ -53,10 +59,12 @@ bool ReadOptions(struct ResourceForkerOptions* pOptions, int argc, char** argv)
         pOptions->writeBinaryData = (strnstr(argv[1], "d", length) != NULL);
         pOptions->verbose = (strnstr(argv[1], "v", length) != NULL);
         pOptions->extractKnownTypes = (strnstr(argv[1], "e", length) != NULL);
+        pOptions->readRawFile = (strnstr(argv[1], "r", length) != NULL);
 
         if (pOptions->writeBinaryData == false
                 && pOptions->verbose == false
-                && pOptions->extractKnownTypes == false)
+                && pOptions->extractKnownTypes == false
+                && pOptions->readRawFile == false)
         {
             printf("Unknown flags specified: %s\n", argv[1] + 1);
             return false;
