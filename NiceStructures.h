@@ -57,16 +57,20 @@ void BuildResourceMap(struct ResourceMap* pResourceMap, FILE* f)
         {
             pResourceMap->resourceTypes[i]->resources[j] = (struct Resource*)malloc(sizeof(struct Resource));
             currentResource = pResourceMap->resourceTypes[i]->resources[j];
+            memset(&currentResource->name, 0, 257);
             if (resourceDefinitionList[j]->nameOffset != 0xFFFF)
             {
                 fseek(f, startOfNameList + resourceDefinitionList[j]->nameOffset, SEEK_SET);
-                ReadNameFromList(currentResource->name, 257, f);
+                snprintf(currentResource->name, 256, "%d (", resourceDefinitionList[j]->ID);
+                uint32_t namelength = strlen(currentResource->name);
+                ReadNameFromList(currentResource->name + namelength, 256 - namelength, f);
+                namelength = strlen(currentResource->name);
+                snprintf(currentResource->name + namelength, 256 - namelength, ")");
 
             }
             else
             {
-                memset(&currentResource->name, 0, 257);
-                snprintf(currentResource->name, 257, "<< No Name (%d) >>", j + 1);
+                snprintf(currentResource->name, 256, "%d (No Name)", resourceDefinitionList[j]->ID);
             }
 
             // dataOffset is read unaligned so fix it up
