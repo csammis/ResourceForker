@@ -6,10 +6,13 @@
 #include <sys/xattr.h>
 #include <unistd.h>
 #include "Options.h"
+
 #include "dissect/Snd.h"
 #include "dissect/Bitmaps.h"
 #include "dissect/Text.h"
 #include "dissect/Symbols.h"
+
+#include "pef/PEF.h"
 
 #define MKDIR_FLAGS S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH
 
@@ -80,6 +83,21 @@ int main(int argc, char** argv)
 
         ProcessMap(&map, &options);
         FreeResourceMap(&map);
+
+        if (options.disassemblePEF)
+        {
+            FILE* pefInput = fopen(options.filename, "r");
+            if (pefInput == NULL)
+            {
+                printf("! Unable to open '%s'\n", options.filename);
+                return 1;
+            }
+            mkdir("disassembly", MKDIR_FLAGS);
+            chdir("disassembly");
+            ProcessPEF(pefInput);
+            fclose(pefInput);
+            chdir("..");
+        }
     }
 
     return 0;

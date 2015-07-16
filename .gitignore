@@ -4,3 +4,4 @@ ResourceForker
 *.bmp
 resources/
 dump/
+disassembly/
