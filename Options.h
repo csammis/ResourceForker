@@ -27,8 +27,9 @@ void PrintUsage()
     printf("\t'snd ', depends on compression.\n");
     printf("\t\tIMA4: extracted as raw signed 16bit PCM with a descriptor file\n");
     printf("\t\tOther: not extracted\n");
-    printf("\t'STR', 'STR#': extracted with CR-LF line endings\n");
+    printf("\t'STR', 'STR#', extracted with CR-LF line endings\n");
     printf("\t'TEXT', extracted with CR-LF line endings\n");
+    printf("\t'NAME', 'DLL#', extracted as lists with one signature per line\n");
 }
 
 bool ReadOptions(struct ResourceForkerOptions* pOptions, int argc, char** argv)

@@ -20,5 +20,7 @@ Known types (extracted with -e):
 	'snd ', depends on compression.
 		IMA4: extracted as raw signed 16bit PCM with a descriptor file
 		Other: not extracted
+	'STR', 'STR#', extracted with CR-LF line endings
 	'TEXT', extracted with CR-LF line endings
+	'NAME', 'DLL#', extracted as lists with one signature per line
 ```
