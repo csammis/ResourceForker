@@ -15,6 +15,7 @@
 #define DS_FORM PrintDSForm(inst, opcode)
 #define I_FORM PrintIForm(inst, opcode)
 #define M_FORM PrintMForm(inst, opcode)
+#define XL_FORM PrintXLForm(inst, opcode, extOpcode)
 
 void PrintIForm(uint8_t* inst, uint8_t opcode)
 {
@@ -92,6 +93,42 @@ void PrintXFLForm(uint8_t* inst, uint8_t opcode)
     printf("mtfsf");
     if (inst[3] & 0x01) printf(".");
     printf("\t%d, fpr%d", flm, frb);
+}
+
+void PrintXLForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
+{
+    uint8_t bt = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
+    uint8_t ba = (inst[1] & 0x1F);
+    uint8_t bb = (inst[2] & 0xF8) >> 3;
+    
+
+    switch (extOpcode)
+    {
+        case 0:
+            {
+                uint8_t bf = (bt & 0x1C) >> 2;
+                uint8_t bfa = (ba & 0x1E) >> 1;
+                printf("\t%d, %d", bf, bfa);
+            }
+            break;
+        case 33:
+        case 129:
+        case 193:
+        case 225:
+        case 257:
+        case 289:
+        case 417:
+        case 449:
+            printf("\t%d, %d, %d", bt, ba, bb);
+            break;
+        case 16:
+        case 528:
+            {
+                uint8_t bh = (bb & 0x03);
+                printf("\t%d, %d, %d", bt, ba, bh);
+            }
+            break;
+    }
 }
 
 void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
@@ -268,7 +305,7 @@ void HandleOpcode63(uint8_t* inst, uint8_t opcode)
 bool PrintOpcode(uint8_t* inst)
 {
     uint8_t opcode = (inst[0] & 0xFC) >> 2;
-    uint32_t extOpcode = ((inst[2] & 0x07) << 7) | (inst[3] >> 1);
+    uint16_t extOpcode = ((inst[2] & 0x07) << 7) | (inst[3] >> 1);
     switch (opcode)
     {
         case 0x00: printf("Illegal!"); break;
@@ -286,25 +323,25 @@ bool PrintOpcode(uint8_t* inst)
         CASE_PRINT(16, bc);     B_FORM; break;
         CASE_PRINT(17, sc); break;
         CASE_PRINT(18, b);      I_FORM; break;
-        case 0x13: switch(extOpcode)
+        case 19: switch(extOpcode)
         {
-            case 0x0000: printf("mcrf"); break;
-            case 0x0010: printf("bclr"); break;
-            case 0x0012: printf("rfid"); break;
-            case 0x0021: printf("crnor"); break;
-            case 0x0032: printf("rfi"); break;
-            case 0x0052: printf("rfsvc"); break;
-            case 0x0081: printf("crandc"); break;
-            case 0x0096: printf("isync"); break;
-            case 0x00C1: printf("crxor"); break;
-            case 0x00E1: printf("crnand"); break;
-            case 0x0101: printf("crand"); break;
-            case 0x0121: printf("creqv"); break;
-            case 0x01A1: printf("crorc"); break;
-            case 0x01C1: printf("cror"); break;
-            case 0x0210: printf("bcctr"); break;
-            default: printf("!! Unknown extended opcode 0x%02x for opcode 0x13", extOpcode); break;
+            CASE_PRINT(0, mcrf); break;
+            CASE_PRINT(16, bclr); break;
+            CASE_PRINT(18, rfid); break;
+            CASE_PRINT(33, crnor); break;
+            CASE_PRINT(129, crandc); break;
+            CASE_PRINT(150, isync); break;
+            CASE_PRINT(193, crxor); break;
+            CASE_PRINT(225, crnand); break;
+            CASE_PRINT(257, crand); break;
+            CASE_PRINT(274, hrfid); break;
+            CASE_PRINT(289, creqv); break;
+            CASE_PRINT(417, crorc); break;
+            CASE_PRINT(449, cror); break;
+            CASE_PRINT(528, bcctr); break;
+            default: printf("!! Unknown extended opcode %d for opcode 19", extOpcode); return false;
         }
+        XL_FORM;
         break;
         CASE_PRINT(20, rlwimi); M_FORM; break;
         CASE_PRINT(21, rlwinm); M_FORM; break;
