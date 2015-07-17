@@ -15,6 +15,7 @@
 #define DS_FORM PrintDSForm(inst, opcode)
 #define I_FORM PrintIForm(inst, opcode)
 #define M_FORM PrintMForm(inst, opcode)
+#define MD_FORM PrintMDForm(inst, opcode)
 #define XL_FORM PrintXLForm(inst, opcode, extOpcode)
 
 void PrintIForm(uint8_t* inst, uint8_t opcode)
@@ -67,21 +68,28 @@ void PrintAForm(uint8_t* inst, uint8_t opcode)
     if (opcode == 59) printf("s");
     if (inst[3] & 0x0) printf(".");
 
-    if (xo == 18 || xo == 20 || xo == 21)
+    switch (xo)
     {
-        printf("\tfpr%d, fpr%d, fpr%d", rst, ra, rb);
-    }
-    else if (xo == 25)
-    {
-        printf("\tfpr%d, fpr%d, fpr%d", rst, ra, rc);
-    }
-    else if (xo == 29 || xo == 28 || xo == 30 || xo == 31 || xo == 23)
-    {
-        printf("\tfpr%d, fpr%d, fpr%d, fpr%d", rst, ra, rc, rb);
-    }
-    else if (xo == 22 || xo == 24 || xo == 26)
-    {
-        printf("\tfpr%d, fpr%d", rst, rb);
+        case 18:
+        case 20:
+        case 21:
+            printf("\tfpr%d, fpr%d, fpr%d", rst, ra, rb);
+            break;
+        case 25:
+            printf("\tfpr%d, fpr%d, fpr%d", rst, ra, rc);
+            break;
+        case 23:
+        case 28:
+        case 29:
+        case 30:
+        case 31:
+            printf("\tfpr%d, fpr%d, fpr%d, fpr%d", rst, ra, rc, rb);
+            break;
+        case 22:
+        case 24:
+        case 26:
+            printf("\tfpr%d, fpr%d", rst, rb);
+            break;
     }
 }
 
@@ -100,7 +108,6 @@ void PrintXLForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
     uint8_t bt = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t ba = (inst[1] & 0x1F);
     uint8_t bb = (inst[2] & 0xF8) >> 3;
-    
 
     switch (extOpcode)
     {
@@ -161,33 +168,43 @@ void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
 
     if (inst[3] & 0x01) printf(".");
 
-    if (extOpcode == 264 || extOpcode == 72 || extOpcode == 40 || extOpcode == 136 ||
-            extOpcode == 12 || extOpcode == 814 || extOpcode == 815 || extOpcode == 14 ||
-            extOpcode == 15 || extOpcode == 846)
+    switch (extOpcode)
     {
-        printf("\tfpr%d, fpr%d", rst, frb);
-    }
-    else if (extOpcode == 0 || extOpcode == 32)
-    {
-        printf("\t%d, fpr%d, fpr%d", bf, fra, frb);
-    }
-    else if (extOpcode == 64)
-    {
-        uint8_t bfa = (fra & 0xF0) >> 4;
-        printf("\t%d, %d", bf, bfa);
-    }
-    else if (extOpcode == 134)
-    {
-        uint8_t u = (frb & 0xFE) >> 1;
-        printf("\t%d, %d", bf, u);
-    }
-    else if (extOpcode == 583)
-    {
-        printf("\tfpr%d", rst);
-    }
-    else if (extOpcode == 38 || extOpcode == 70)
-    {
-        printf("\t%d", rst);
+        case 12:
+        case 14:
+        case 15:
+        case 40:
+        case 72:
+        case 136:
+        case 264:
+        case 814:
+        case 815:
+        case 846:
+            printf("\tfpr%d, fpr%d", rst, frb);
+            break;
+        case 0:
+        case 32:
+            printf("\t%d, fpr%d, fpr%d", bf, fra, frb);
+            break;
+        case 64:
+            {
+                uint8_t bfa = (fra & 0xF0) >> 4;
+                printf("\t%d, %d", bf, bfa);
+            }
+            break;
+        case 134:
+            {
+                uint8_t u = (frb & 0xFE) >> 1;
+                printf("\t%d, %d", bf, u);
+            }
+            break;
+        case 583:
+            printf("\tfpr%d", rst);
+            break;
+        case 38:
+        case 70:
+            printf("\t%d", rst);
+            break;
     }
 }
 
@@ -282,6 +299,50 @@ void PrintDForm(uint8_t* inst, uint8_t opcode)
     }
 }
 
+void PrintMDForm(uint8_t* inst, uint8_t opcode)
+{
+    uint8_t rs = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
+    uint8_t ra = (inst[1] & 0x1F);
+    uint8_t rb = (inst[2] & 0xF8) >> 3;
+    uint8_t mb = ((inst[2] & 0x07) << 3) | ((inst[3] & 0xE0) >> 5);
+    uint8_t xo = ((inst[3] & 0x1E) >> 1);
+    uint8_t sh = (rb << 1) | (xo & 0x01);
+
+    switch (xo)
+    {
+        CASE_PRINT(0, icl); break;
+        CASE_PRINT(1, icr); break;
+        CASE_PRINT(2, ic); break;
+        CASE_PRINT(3, imi); break;
+        CASE_PRINT(8, cl); break;
+        CASE_PRINT(9, cr); break;
+    }
+
+    if (inst[3] & 0x01) printf(".");
+
+    uint64_t mask = 0;
+    if (xo == 0 || xo == 2 || xo == 3 || xo == 8)
+    {
+        int mlen = 64 - mb;
+        do { mask = ((mask << 1) | 1); } while (mlen-- > 0);
+        mask <<= mb;
+    }
+    else if (xo == 1 || xo == 9)
+    {
+        int mlen = mb;
+        do { mask = ((mask << 1) | 1); } while (mlen-- > 0);
+    }
+
+    if (xo == 8 || xo == 9)
+    {
+        printf("\tr%d, r%d, r%d, 0x%016llx", ra, rs, rb, mask);
+    }
+    else
+    {
+        printf("\tr%d, r%d, %d, 0x%016llx", ra, rs, sh, mask);
+    }
+}
+
 void HandleOpcode63(uint8_t* inst, uint8_t opcode)
 {
     uint8_t aExtOpcode = (inst[3] & 0x3E) >> 1;
@@ -321,7 +382,7 @@ bool PrintOpcode(uint8_t* inst)
         CASE_PRINT(14, addi);   D_FORM; break;
         CASE_PRINT(15, addis);  D_FORM; break;
         CASE_PRINT(16, bc);     B_FORM; break;
-        CASE_PRINT(17, sc); break;
+        CASE_PRINT(17, sc);             break;
         CASE_PRINT(18, b);      I_FORM; break;
         case 19: switch(extOpcode)
         {
@@ -353,7 +414,7 @@ bool PrintOpcode(uint8_t* inst)
         CASE_PRINT(27, xoris);  D_FORM; break;
         CASE_PRINT(28, andi.);  D_FORM; break;
         CASE_PRINT(29, andis.); D_FORM; break;
-        case 0x1E: printf("FX Dwd Rot **"); break;
+        CASE_PRINT(30, rld);    MD_FORM; break;
         case 0x1F: switch (extOpcode)
         {
             case 0x0000: printf("cmp"); break;
