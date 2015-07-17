@@ -10,22 +10,29 @@
 
 #define D_FORM PrintDForm(inst, opcode)
 #define I_FORM PrintIForm(inst, opcode)
+#define B_FORM PrintBForm(inst, opcode)
 
 void PrintIForm(uint8_t* inst, uint8_t opcode)
 {
-    if (inst[3] & 0x01)
-    {
-        printf("l");
-    }
-    if (inst[3] & 0x02)
-    {
-        printf("a");
-    }
-
     uint32_t target = OSReadBigInt32(inst, 0);
     target = (target & 0x03FFFFFC) >> 2;
     int64_t value = S64_EXT_24(target);
+
+    if (inst[3] & 0x01) printf("l");
+    if (inst[3] & 0x02) printf("a");
     printf("\t%lld", value);
+}
+
+void PrintBForm(uint8_t* inst, uint8_t opcode)
+{
+    uint8_t bo = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
+    uint8_t bi = (inst[1] & 0x1F);
+    uint16_t target = (OSReadBigInt16(inst, 2) & 0xFFFC) >> 2;
+    int64_t value = S64_EXT_16(target);
+
+    if (inst[3] & 0x01) printf("l");
+    if (inst[3] & 0x02) printf("a");
+    printf("\t%d, %d, %lld", bo, bi, value);
 }
 
 void PrintDForm(uint8_t* inst, uint8_t opcode)
@@ -75,7 +82,7 @@ bool PrintOpcode(uint8_t* inst)
         CASE_PRINT(13, addic.); D_FORM; break;
         CASE_PRINT(14, addi);   D_FORM; break;
         CASE_PRINT(15, addis);  D_FORM; break;
-        CASE_PRINT(16, bc); break;
+        CASE_PRINT(16, bc);     B_FORM; break;
         CASE_PRINT(17, sc); break;
         CASE_PRINT(18, b);      I_FORM; break;
         case 0x13: switch(extOpcode)
