@@ -11,6 +11,7 @@
 #define D_FORM PrintDForm(inst, opcode)
 #define I_FORM PrintIForm(inst, opcode)
 #define B_FORM PrintBForm(inst, opcode)
+#define DS_FORM PrintDSForm(inst, opcode)
 
 void PrintIForm(uint8_t* inst, uint8_t opcode)
 {
@@ -33,6 +34,40 @@ void PrintBForm(uint8_t* inst, uint8_t opcode)
     if (inst[3] & 0x01) printf("l");
     if (inst[3] & 0x02) printf("a");
     printf("\t%d, %d, %lld", bo, bi, value);
+}
+
+void PrintDSForm(uint8_t* inst, uint8_t opcode)
+{
+    uint8_t rst = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
+    uint8_t ra = (inst[1] & 0x1F);
+    uint8_t xo = (inst[3] & 0x03);
+    uint16_t value = (OSReadBigInt16(inst, 2) & 0xFFFC);
+    int64_t signextvalue = S64_EXT_16(value);
+
+    if (opcode == 58)
+    {
+        switch (xo)
+        {
+            CASE_PRINT(0, ld);  break;
+            CASE_PRINT(1, ldu); break;
+            CASE_PRINT(2, lwa); break;
+        }
+        if (ra == 0 || rst == ra)
+        {
+            printf("\t!! Invalid instruction form");
+            return;
+        }
+    }
+    else if (opcode == 62)
+    {
+        if (xo == 1) printf("u");
+        if (ra == 0)
+        {
+            printf("\t!! Invalid instruction form");
+            return;
+        }
+    }
+    printf("\tr%d, %lld(r%d)", rst, signextvalue, ra);
 }
 
 void PrintDForm(uint8_t* inst, uint8_t opcode)
@@ -109,12 +144,12 @@ bool PrintOpcode(uint8_t* inst)
         case 0x15: printf("rlwinm"); break;
         case 0x16: printf("rlmi"); break;
         case 0x17: printf("rlwnm"); break;
-        case 0x18: printf("ori");    D_FORM; break;
-        case 0x19: printf("oris");   D_FORM; break;
-        case 0x1A: printf("xori");   D_FORM; break;
-        case 0x1B: printf("xoris");  D_FORM; break;
-        case 0x1C: printf("andi.");  D_FORM; break;
-        case 0x1D: printf("andis."); D_FORM; break;
+        CASE_PRINT(24, ori);    D_FORM; break;
+        CASE_PRINT(25, oris);   D_FORM; break;
+        CASE_PRINT(26, xori);   D_FORM; break;
+        CASE_PRINT(27, xoris);  D_FORM; break;
+        CASE_PRINT(28, andi.);  D_FORM; break;
+        CASE_PRINT(29, andis.); D_FORM; break;
         case 0x1E: printf("FX Dwd Rot **"); break;
         case 0x1F: switch (extOpcode)
         {
@@ -339,37 +374,37 @@ bool PrintOpcode(uint8_t* inst)
             default: printf("!! Unknown extended opcode %u for opcode 0x1F", extOpcode); break;
         }
         break;
-        case 0x20: printf("lwz");   D_FORM; break;
-        case 0x21: printf("lwzu");  D_FORM; break;
-        case 0x22: printf("lbz");   D_FORM; break;
-        case 0x23: printf("lbzu");  D_FORM; break;
-        case 0x24: printf("stw");   D_FORM; break;
-        case 0x25: printf("stwu");  D_FORM; break;
-        case 0x26: printf("stb");   D_FORM; break;
-        case 0x27: printf("stbu");  D_FORM; break;
-        case 0x28: printf("lhz");   D_FORM; break;
-        case 0x29: printf("lhzu");  D_FORM; break;
-        case 0x2A: printf("lha");   D_FORM; break;
-        case 0x2B: printf("lhau");  D_FORM; break;
-        case 0x2C: printf("sth");   D_FORM; break;
-        case 0x2D: printf("sthu");  D_FORM; break;
-        case 0x2E: printf("lmw");   D_FORM; break;
-        case 0x2F: printf("stmw");  D_FORM; break;
-        case 0x30: printf("lfs");   D_FORM; break;
-        case 0x31: printf("lfsu");  D_FORM; break;
-        case 0x32: printf("lfd");   D_FORM; break;
-        case 0x33: printf("lfdu");  D_FORM; break;
-        case 0x34: printf("stfs");  D_FORM; break;
-        case 0x35: printf("stfsu"); D_FORM; break;
-        case 0x36: printf("stfd");  D_FORM; break;
-        case 0x37: printf("stfdu"); D_FORM; break;
+        CASE_PRINT(32, lwz);   D_FORM; break;
+        CASE_PRINT(33, lwzu);  D_FORM; break;
+        CASE_PRINT(34, lbz);   D_FORM; break;
+        CASE_PRINT(35, lbzu);  D_FORM; break;
+        CASE_PRINT(36, stw);   D_FORM; break;
+        CASE_PRINT(37, stwu);  D_FORM; break;
+        CASE_PRINT(38, stb);   D_FORM; break;
+        CASE_PRINT(39, stbu);  D_FORM; break;
+        CASE_PRINT(40, lhz);   D_FORM; break;
+        CASE_PRINT(41, lhzu);  D_FORM; break;
+        CASE_PRINT(42, lha);   D_FORM; break;
+        CASE_PRINT(43, lhau);  D_FORM; break;
+        CASE_PRINT(44, sth);   D_FORM; break;
+        CASE_PRINT(45, sthu);  D_FORM; break;
+        CASE_PRINT(46, lmw);   D_FORM; break;
+        CASE_PRINT(47, stmw);  D_FORM; break;
+        CASE_PRINT(48, lfs);   D_FORM; break;
+        CASE_PRINT(49, lfsu);  D_FORM; break;
+        CASE_PRINT(50, lfd);   D_FORM; break;
+        CASE_PRINT(51, lfdu);  D_FORM; break;
+        CASE_PRINT(52, stfs);  D_FORM; break;
+        CASE_PRINT(53, stfsu); D_FORM; break;
+        CASE_PRINT(54, stfd);  D_FORM; break;
+        CASE_PRINT(55, stfdu); D_FORM; break;
         case 0x38: printf("lfq"); break;
         case 0x39: printf("lfqu"); break;
-        case 0x3A: printf("FX DS-form loads **"); break;
+        case 58:               DS_FORM; break;
         case 0x3B: printf("FP Single Extended **"); break;
         case 0x3C: printf("stfq"); break;
         case 0x3D: printf("stfqu"); break;
-        case 0x3E: printf("FX DS-form stores **"); break;
+        CASE_PRINT(62, std);   DS_FORM; break;
         case 0x3F: printf("FP Double Extended **"); break;
         default: printf("!! Unknown opcode 0x%02x", opcode); return false;
     }
