@@ -8,10 +8,11 @@
 
 #define CASE_PRINT(x, y) case x: printf(#y);
 
-#define D_FORM PrintDForm(inst, opcode)
-#define I_FORM PrintIForm(inst, opcode)
+#define A_FORM PrintAForm(inst, opcode)
 #define B_FORM PrintBForm(inst, opcode)
+#define D_FORM PrintDForm(inst, opcode)
 #define DS_FORM PrintDSForm(inst, opcode)
+#define I_FORM PrintIForm(inst, opcode)
 #define M_FORM PrintMForm(inst, opcode)
 
 void PrintIForm(uint8_t* inst, uint8_t opcode)
@@ -35,6 +36,51 @@ void PrintBForm(uint8_t* inst, uint8_t opcode)
     if (inst[3] & 0x01) printf("l");
     if (inst[3] & 0x02) printf("a");
     printf("\t%d, %d, %lld", bo, bi, value);
+}
+
+void PrintAForm(uint8_t* inst, uint8_t opcode)
+{
+    uint8_t rst = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
+    uint8_t ra = (inst[1] & 0x1F);
+    uint8_t rb = (inst[2] & 0xF8) >> 3;
+    uint8_t rc = ((inst[2] & 0x07) << 2) | ((inst[3] & 0xC0) >> 6);
+    uint8_t xo = (inst[3] & 0x3E) >> 1;
+
+    switch (xo)
+    {
+        CASE_PRINT(18, fdiv); break;
+        CASE_PRINT(20, fsub); break;
+        CASE_PRINT(21, fadd); break;
+        CASE_PRINT(22, fsqrt); break;
+        CASE_PRINT(23, fsel); break;
+        CASE_PRINT(24, fre); break;
+        CASE_PRINT(25, fmul); break;
+        CASE_PRINT(26, frsqrte); break;
+        CASE_PRINT(28, fmsub); break;
+        CASE_PRINT(29, fmadd); break;
+        CASE_PRINT(30, fnmsub); break;
+        CASE_PRINT(31, fnmadd); break;
+    }
+
+    if (opcode == 59) printf("s");
+    if (inst[3] & 0x0) printf(".");
+
+    if (xo == 18 || xo == 20 || xo == 21)
+    {
+        printf("\tfpr%d, fpr%d, fpr%d", rst, ra, rb);
+    }
+    else if (xo == 25)
+    {
+        printf("\tfpr%d, fpr%d, fpr%d", rst, ra, rc);
+    }
+    else if (xo == 29 || xo == 28 || xo == 30 || xo == 31 || xo == 23)
+    {
+        printf("\tfpr%d, fpr%d, fpr%d, fpr%d", rst, ra, rc, rb);
+    }
+    else if (xo == 22 || xo == 24 || xo == 26)
+    {
+        printf("\tfpr%d, fpr%d", rst, rb);
+    }
 }
 
 void PrintMForm(uint8_t* inst, uint8_t opcode)
@@ -88,6 +134,14 @@ void PrintDSForm(uint8_t* inst, uint8_t opcode)
             return;
         }
     }
+    else if (opcode == 56 || opcode == 57 || opcode == 60 || opcode == 61)
+    {
+        if (xo != 0)
+        {
+            printf("\t!! Invalid instruction form");
+            return;
+        }
+    }
     printf("\tr%d, %lld(r%d)", rst, signextvalue, ra);
 }
 
@@ -117,6 +171,22 @@ void PrintDForm(uint8_t* inst, uint8_t opcode)
     else
     {
         printf("\tr%d, %lld(r%d)", rst, signextvalue, ra);
+    }
+}
+
+void HandleOpcode63(uint8_t* inst, uint8_t opcode)
+{
+    uint8_t aExtOpcode = (inst[3] & 0x3E) >> 1;
+    if (aExtOpcode >= 18 && aExtOpcode <= 31)
+    {
+        PrintAForm(inst, opcode);
+        return;
+    }
+
+    uint16_t xExtOpcode = (OSReadBigInt16(inst, 2) & 0x07FE) >> 1;
+    if (xExtOpcode == 711)
+    {
+
     }
 }
 
@@ -419,14 +489,14 @@ bool PrintOpcode(uint8_t* inst)
         CASE_PRINT(53, stfsu); D_FORM; break;
         CASE_PRINT(54, stfd);  D_FORM; break;
         CASE_PRINT(55, stfdu); D_FORM; break;
-        case 0x38: printf("lfq"); break;
-        case 0x39: printf("lfqu"); break;
+        CASE_PRINT(56, lfq);   DS_FORM; break;
+        CASE_PRINT(57, lfqu);  DS_FORM; break;
         case 58:               DS_FORM; break;
-        case 0x3B: printf("FP Single Extended **"); break;
-        case 0x3C: printf("stfq"); break;
-        case 0x3D: printf("stfqu"); break;
+        case 59:               A_FORM; break;
+        CASE_PRINT(60, stfq);  DS_FORM; break;
+        CASE_PRINT(61, stfqu); DS_FORM; break;
         CASE_PRINT(62, std);   DS_FORM; break;
-        case 0x3F: printf("FP Double Extended **"); break;
+        case 63: HandleOpcode63(inst, opcode); break;
         default: printf("!! Unknown opcode 0x%02x", opcode); return false;
     }
     return true;
