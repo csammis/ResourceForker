@@ -7,6 +7,7 @@
 #define S64_EXT_24(v) v * ((v & 0x800000) ? -1 : 1)
 
 #define CASE_PRINT(x, y) case x: printf(#y);
+#define PRINT_RC if (inst[3] & 0x01) printf(".");
 
 #define A_FORM PrintAForm(inst, opcode)
 #define B_FORM PrintBForm(inst, opcode)
@@ -80,6 +81,76 @@ void PrintAForm(uint8_t* inst, uint8_t opcode)
     else if (xo == 22 || xo == 24 || xo == 26)
     {
         printf("\tfpr%d, fpr%d", rst, rb);
+    }
+}
+
+void PrintXFLForm(uint8_t* inst, uint8_t opcode)
+{
+    uint8_t flm = ((inst[0] & 0x01) << 7) | ((inst[1] & 0xFE) >> 1);
+    uint8_t frb = (inst[2] & 0xF8) >> 3;
+
+    printf("mtfsf");
+    if (inst[3] & 0x01) printf(".");
+    printf("\t%d, fpr%d", flm, frb);
+}
+
+void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
+{
+    uint8_t rst = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
+    uint8_t frb = (inst[2] & 0xF8) >> 3;
+    uint8_t bf = (rst & 0xFE) >> 1;
+    uint8_t fra = (inst[1] & 0x1F);
+
+    switch (extOpcode)
+    {
+        CASE_PRINT(0, fcmpu); break; 
+        CASE_PRINT(12, frsp); break;
+        CASE_PRINT(14, fctiw); break;
+        CASE_PRINT(15, fctiwz); break;
+        CASE_PRINT(32, fcmpo); break;
+        CASE_PRINT(38, mtfsb1); break;
+        CASE_PRINT(40, fneg); break;
+        CASE_PRINT(64, mcrfs); break;
+        CASE_PRINT(70, mtfsb0); break;
+        CASE_PRINT(72, fmr); break;
+        CASE_PRINT(134, mtfsfi); break;
+        CASE_PRINT(136, fnabs); break;
+        CASE_PRINT(264, fabs); break;
+        CASE_PRINT(583, mffs); break;
+        CASE_PRINT(814, fctid); break;
+        CASE_PRINT(815, fctidz); break;
+        CASE_PRINT(846, fcfid); break;
+    }
+
+    if (inst[3] & 0x01) printf(".");
+
+    if (extOpcode == 264 || extOpcode == 72 || extOpcode == 40 || extOpcode == 136 ||
+            extOpcode == 12 || extOpcode == 814 || extOpcode == 815 || extOpcode == 14 ||
+            extOpcode == 15 || extOpcode == 846)
+    {
+        printf("\tfpr%d, fpr%d", rst, frb);
+    }
+    else if (extOpcode == 0 || extOpcode == 32)
+    {
+        printf("\t%d, fpr%d, fpr%d", bf, fra, frb);
+    }
+    else if (extOpcode == 64)
+    {
+        uint8_t bfa = (fra & 0xF0) >> 4;
+        printf("\t%d, %d", bf, bfa);
+    }
+    else if (extOpcode == 134)
+    {
+        uint8_t u = (frb & 0xFE) >> 1;
+        printf("\t%d, %d", bf, u);
+    }
+    else if (extOpcode == 583)
+    {
+        printf("\tfpr%d", rst);
+    }
+    else if (extOpcode == 38 || extOpcode == 70)
+    {
+        printf("\t%d", rst);
     }
 }
 
@@ -186,7 +257,11 @@ void HandleOpcode63(uint8_t* inst, uint8_t opcode)
     uint16_t xExtOpcode = (OSReadBigInt16(inst, 2) & 0x07FE) >> 1;
     if (xExtOpcode == 711)
     {
-
+        PrintXFLForm(inst, opcode);
+    }
+    else
+    {
+        PrintXForm(inst, opcode, xExtOpcode);
     }
 }
 
