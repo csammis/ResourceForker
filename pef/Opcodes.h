@@ -12,6 +12,7 @@
 #define I_FORM PrintIForm(inst, opcode)
 #define B_FORM PrintBForm(inst, opcode)
 #define DS_FORM PrintDSForm(inst, opcode)
+#define M_FORM PrintMForm(inst, opcode)
 
 void PrintIForm(uint8_t* inst, uint8_t opcode)
 {
@@ -34,6 +35,26 @@ void PrintBForm(uint8_t* inst, uint8_t opcode)
     if (inst[3] & 0x01) printf("l");
     if (inst[3] & 0x02) printf("a");
     printf("\t%d, %d, %lld", bo, bi, value);
+}
+
+void PrintMForm(uint8_t* inst, uint8_t opcode)
+{
+    uint8_t rst = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
+    uint8_t ra = (inst[1] & 0x1F);
+    uint8_t sh = (inst[2] & 0xF8) >> 3;
+    uint8_t mb = ((inst[2] & 0x07) << 2) | ((inst[3] & 0xC0) >> 6);
+    uint8_t me = (inst[3] & 0x3E);
+
+    uint64_t mask = 0;
+    if (mb <= me)
+    {
+        int mlen = me - mb;
+        do { mask = ((mask << 1) | 1); } while (mlen-- > 0);
+        mask <<= mb;
+    }
+
+    if (inst[3] & 0x01) printf(".");
+    printf("\tr%d, r%d, %d, 0x%016llx", rst, ra, sh, mask);
 }
 
 void PrintDSForm(uint8_t* inst, uint8_t opcode)
@@ -110,7 +131,7 @@ bool PrintOpcode(uint8_t* inst)
         CASE_PRINT(3,  twi);    D_FORM; break;
         CASE_PRINT(7,  mulli);  D_FORM; break;
         CASE_PRINT(8,  subfic); D_FORM; break;
-        CASE_PRINT(9,  dozi);   D_FORM; break;
+        CASE_PRINT(9, Invalid for PowerPC); break;
         CASE_PRINT(10, cmpli);  D_FORM; break;
         CASE_PRINT(11, cmpi);   D_FORM; break;
         CASE_PRINT(12, addic);  D_FORM; break;
@@ -140,10 +161,10 @@ bool PrintOpcode(uint8_t* inst)
             default: printf("!! Unknown extended opcode 0x%02x for opcode 0x13", extOpcode); break;
         }
         break;
-        case 0x14: printf("rlwimi"); break;
-        case 0x15: printf("rlwinm"); break;
-        case 0x16: printf("rlmi"); break;
-        case 0x17: printf("rlwnm"); break;
+        CASE_PRINT(20, rlwimi); M_FORM; break;
+        CASE_PRINT(21, rlwinm); M_FORM; break;
+        CASE_PRINT(22, Invalid for PowerPC); break;
+        CASE_PRINT(23, rlwnm);  M_FORM; break;
         CASE_PRINT(24, ori);    D_FORM; break;
         CASE_PRINT(25, oris);   D_FORM; break;
         CASE_PRINT(26, xori);   D_FORM; break;
