@@ -3,16 +3,37 @@
 
 #include <stdbool.h>
 
+#define S64_EXT_16(v) v * ((v & 0x8000) ? -1 : 1)
+#define S64_EXT_24(v) v * ((v & 0x800000) ? -1 : 1)
+
 #define CASE_PRINT(x, y) case x: printf(#y);
 
 #define D_FORM PrintDForm(inst, opcode)
+#define I_FORM PrintIForm(inst, opcode)
+
+void PrintIForm(uint8_t* inst, uint8_t opcode)
+{
+    if (inst[3] & 0x01)
+    {
+        printf("l");
+    }
+    if (inst[3] & 0x02)
+    {
+        printf("a");
+    }
+
+    uint32_t target = OSReadBigInt32(inst, 0);
+    target = (target & 0x03FFFFFC) >> 2;
+    int64_t value = S64_EXT_24(target);
+    printf("\t%lld", value);
+}
 
 void PrintDForm(uint8_t* inst, uint8_t opcode)
 {
     uint8_t rst = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t ra = (inst[1] & 0x1F);
     uint16_t value = OSReadBigInt16(inst, 2);
-    int64_t signextvalue = value * ((value & 0x8000) ? -1 : 1);
+    int64_t signextvalue = S64_EXT_16(value);
 
     if (opcode == 2 || opcode == 3) // Fixed point trap instructions
     {
@@ -43,20 +64,20 @@ bool PrintOpcode(uint8_t* inst)
     switch (opcode)
     {
         case 0x00: printf("Illegal!"); break;
-        case 0x02: printf("tdi");    D_FORM; break;
-        case 0x03: printf("twi");    D_FORM; break;
-        case 0x07: printf("mulli");  D_FORM; break;
-        case 0x08: printf("subfic"); D_FORM; break;
-        case 0x09: printf("dozi");   D_FORM; break;
-        case 0x0A: printf("cmpli");  D_FORM; break;
-        case 0x0B: printf("cmpi");   D_FORM; break;
-        case 0x0C: printf("addic");  D_FORM; break;
-        case 0x0D: printf("addic."); D_FORM; break;
-        case 0x0E: printf("addi");   D_FORM; break;
-        case 0x0F: printf("addis");  D_FORM; break;
-        case 0x10: printf("bc"); break;
-        case 0x11: printf("sc"); break;
-        case 0x12: printf("b"); break;
+        CASE_PRINT(2,  tdi);    D_FORM; break;
+        CASE_PRINT(3,  twi);    D_FORM; break;
+        CASE_PRINT(7,  mulli);  D_FORM; break;
+        CASE_PRINT(8,  subfic); D_FORM; break;
+        CASE_PRINT(9,  dozi);   D_FORM; break;
+        CASE_PRINT(10, cmpli);  D_FORM; break;
+        CASE_PRINT(11, cmpi);   D_FORM; break;
+        CASE_PRINT(12, addic);  D_FORM; break;
+        CASE_PRINT(13, addic.); D_FORM; break;
+        CASE_PRINT(14, addi);   D_FORM; break;
+        CASE_PRINT(15, addis);  D_FORM; break;
+        CASE_PRINT(16, bc); break;
+        CASE_PRINT(17, sc); break;
+        CASE_PRINT(18, b);      I_FORM; break;
         case 0x13: switch(extOpcode)
         {
             case 0x0000: printf("mcrf"); break;
