@@ -70,6 +70,7 @@ void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
         case 982:
         case 983:
         case 1014:
+            printf("\tDEBUG: Recognized but unimplemented extended opcode %d for opcode 31", extOpcode);
             break;
         case 24:
         case 27:
@@ -139,7 +140,7 @@ void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
         case 824:
             printf("\tr%d, r%d, %d", ra, rst, rb);
             break;
-        default: printf("    tst");
+        default: printf("\tDEBUG: unrecognized extended opcode %d for opcode 31", extOpcode);
     }
 }
 
@@ -215,6 +216,7 @@ void PrintAForm(uint8_t* inst, uint8_t opcode)
         case 26:
             printf("\tfpr%d, fpr%d", rst, rb);
             break;
+        default: printf("\tDEBUG: unrecognized extended opcode %d for opcode %d", xo, opcode);
     }
 }
 
@@ -260,6 +262,7 @@ void PrintXLForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
                 printf("\t%d, %d, %d", bt, ba, bh);
             }
             break;
+        default: printf("\tDEBUG: unrecognized extended opcode %d for opcode %d", extOpcode, opcode);
     }
 }
 
@@ -289,6 +292,9 @@ void PrintFloatingXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
         CASE_PRINT(814, fctid); break;
         CASE_PRINT(815, fctidz); break;
         CASE_PRINT(846, fcfid); break;
+        default:
+            printf("\tDEBUG: unrecognized extended opcode %d for opcode %d", extOpcode, opcode);
+            return;
     }
 
     if (inst[3] & 0x01) printf(".");
@@ -392,6 +398,11 @@ void PrintDSForm(uint8_t* inst, uint8_t opcode)
             return;
         }
     }
+    else
+    {
+        printf("\tDEBUG: Called PrintDSForm with unexpected opcode %d", opcode);
+        return;
+    }
     printf("\tr%d, %lld(r%d)", rst, signextvalue, ra);
 }
 
@@ -441,6 +452,9 @@ void PrintMDForm(uint8_t* inst, uint8_t opcode)
         CASE_PRINT(3, imi); break;
         CASE_PRINT(8, cl); break;
         CASE_PRINT(9, cr); break;
+        default:
+            printf("\tDEBUG: unrecognized extended opcode %d for opcode %d", xo, opcode);
+            return;
     }
 
     if (inst[3] & 0x01) printf(".");
@@ -525,7 +539,7 @@ bool PrintOpcode(uint8_t* inst)
             CASE_PRINT(417, crorc); break;
             CASE_PRINT(449, cror); break;
             CASE_PRINT(528, bcctr); break;
-            default: printf("** Unknown extended opcode %d for opcode 19", extOpcode); return false;
+            default: printf("DEBUG: Unknown extended opcode %d for opcode 19", extOpcode); return false;
         }
         XL_FORM;
         break;
@@ -659,7 +673,7 @@ bool PrintOpcode(uint8_t* inst)
             CASE_PRINT(983, stfiwx);    X_FORM; break;
             CASE_PRINT(986, extsw);     X_FORM; break;
             CASE_PRINT(1014, dcbz);     X_FORM; break;
-            default: printf("** Unknown extended opcode %u for opcode 31", extOpcode); break;
+            default: printf("DEBUG: Unknown extended opcode %u for opcode 31", extOpcode); break;
         }
         break;
         CASE_PRINT(32, lwz);   D_FORM; break;
@@ -694,7 +708,7 @@ bool PrintOpcode(uint8_t* inst)
         CASE_PRINT(61, stfqu); DS_FORM; break;
         CASE_PRINT(62, std);   DS_FORM; break;
         case 63: HandleOpcode63(inst, opcode); break;
-        default: printf("** Unknown opcode 0x%02x", opcode); return false;
+        default: printf("DEBUG: Unknown opcode %d", opcode); return false;
     }
     return true;
 }
