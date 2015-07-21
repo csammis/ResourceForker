@@ -95,7 +95,7 @@ void ProcessCodeSection(uint8_t* codeSection, uint32_t sectionLength)
     for (uint32_t i = 0; i < sectionLength; i += 4)
     {
         memcpy(&inst, codeSection + i, 4);
-        printf("%02x %02x %02x %02x\t", inst[0], inst[1], inst[2], inst[3]);
+        printf("0x%08x\t%02x %02x %02x %02x\t", i, inst[0], inst[1], inst[2], inst[3]);
         PrintOpcode(inst);
         printf("\n");
     }
