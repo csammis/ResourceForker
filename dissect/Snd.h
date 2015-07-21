@@ -44,7 +44,7 @@ void ClampSigned16BitPCM(int* pValue)
 uint32_t IMA4_Decode(struct Resource* pResource, uint32_t offset, uint32_t frameCount, short** outputBuffer)
 {
     // 32 data bytes per frame, two samples per byte
-    short* output = (short*)malloc(sizeof(uint16_t) * frameCount * 64);
+    short* output = malloc(sizeof(uint16_t) * frameCount * 64);
     uint32_t outIndex = 0;
     for (uint32_t i = 0; i < frameCount; i++)
     {

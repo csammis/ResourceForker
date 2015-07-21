@@ -64,11 +64,11 @@ size_t ReadResourceDefinitionList(struct ResourceDefinition*** pResources, uint1
     void* pBuffer = malloc(sizeof(struct ResourceDefinition) * count);
     size_t readSize = fread(pBuffer, sizeof(struct ResourceDefinition), count, f);
 
-    *pResources = (struct ResourceDefinition**)malloc(sizeof(struct ResourceDefinition*) * count);
+    *pResources = malloc(sizeof(struct ResourceDefinition*) * count);
     for (uint16_t i = 0; i < count; i++)
     {
         uint32_t bufferIndex = i * sizeof(struct ResourceDefinition);
-        (*pResources)[i] = (struct ResourceDefinition*)malloc(sizeof(struct ResourceDefinition));
+        (*pResources)[i] = malloc(sizeof(struct ResourceDefinition));
         (*pResources)[i]->ID = OSReadBigInt16(pBuffer, bufferIndex + 0);
         (*pResources)[i]->nameOffset = OSReadBigInt16(pBuffer, bufferIndex + 2);
         (*pResources)[i]->attributes = *((uint8_t*)(pBuffer) + bufferIndex + 4);
@@ -120,11 +120,11 @@ size_t ReadTypeDefinitionList(struct TypeDefinition*** pTypes, uint16_t* pTypeCo
     free(pSizeBuffer);
     void* pBuffer = malloc(sizeof(struct TypeDefinition) * typeCount);
     readSize = fread(pBuffer, sizeof(struct TypeDefinition), typeCount, f);
-    *pTypes = (struct TypeDefinition**)malloc(sizeof(struct TypeDefinition*) * typeCount);
+    *pTypes = malloc(sizeof(struct TypeDefinition*) * typeCount);
     for (uint16_t i = 0; i < typeCount; i++)
     {
         uint32_t bufferIndex = i * sizeof(struct TypeDefinition);
-        (*pTypes)[i] = (struct TypeDefinition*)malloc(sizeof(struct TypeDefinition));
+        (*pTypes)[i] = malloc(sizeof(struct TypeDefinition));
         memcpy(&(*pTypes)[i]->identifier, pBuffer + bufferIndex, 4);
         (*pTypes)[i]->resourceCount = OSReadBigInt16(pBuffer, bufferIndex + 4) + 1;
         (*pTypes)[i]->resourceListOffset = OSReadBigInt16(pBuffer, bufferIndex + 6);

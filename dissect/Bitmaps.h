@@ -72,7 +72,7 @@ struct BitmapInfoHeader
 void ConvertResourceToBitmap(struct Resource* pResource)
 {
     uint32_t bitmapSize = 2 + BITMAP_HEADER_SIZE + BITMAP_INFO_HEADER_SIZE + (8 * 32 * 32);
-    uint8_t* pBitmapData = (uint8_t*)malloc(bitmapSize);
+    uint8_t* pBitmapData = malloc(bitmapSize);
   
     uint8_t signature[2] = {0x42, 0x4D};
     memcpy(pBitmapData, &signature, 2);
@@ -125,7 +125,7 @@ void DissectICN(struct ResourceType* pResourceType)
     // These are 1bpp 32x32 icons so create 8bpp icons from them and pass to the icl8 extractor
     for (uint16_t i = 0; i < pResourceType->resourceCount; i++)
     {
-        struct Resource* p8bppIcon = (struct Resource*)malloc(sizeof(struct Resource));
+        struct Resource* p8bppIcon = malloc(sizeof(struct Resource));
         memset(p8bppIcon->name, 0, 257);
         memcpy(p8bppIcon->name, pResourceType->resources[i]->name, strlen(pResourceType->resources[i]->name));
         p8bppIcon->dataSize = 4 * pResourceType->resources[i]->dataSize;

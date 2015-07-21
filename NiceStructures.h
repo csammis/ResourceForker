@@ -51,11 +51,11 @@ void BuildResourceMap(struct ResourceMap* pResourceMap, FILE* f)
 
         pResourceMap->resourceTypes[i]->resourceCount = typeList[i]->resourceCount;
         size_t mallocSize = sizeof(struct Resource*) * typeList[i]->resourceCount;
-        pResourceMap->resourceTypes[i]->resources = (struct Resource**)malloc(mallocSize);
+        pResourceMap->resourceTypes[i]->resources = malloc(mallocSize);
         struct Resource* currentResource;
         for (uint16_t j = 0; j < typeList[i]->resourceCount; j++)
         {
-            pResourceMap->resourceTypes[i]->resources[j] = (struct Resource*)malloc(sizeof(struct Resource));
+            pResourceMap->resourceTypes[i]->resources[j] = malloc(sizeof(struct Resource));
             currentResource = pResourceMap->resourceTypes[i]->resources[j];
             memset(&currentResource->name, 0, 257);
             if (resourceDefinitionList[j]->nameOffset != 0xFFFF)
