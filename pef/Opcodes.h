@@ -502,7 +502,7 @@ void HandleOpcode63(uint8_t* inst, uint8_t opcode)
     }
 }
 
-bool PrintOpcode(uint8_t* inst)
+bool PrintOpcode(uint32_t instAddress, uint8_t* inst)
 {
     uint8_t opcode = (inst[0] & 0xFC) >> 2;
     uint16_t extOpcode = ((inst[2] & 0x07) << 7) | (inst[3] >> 1);

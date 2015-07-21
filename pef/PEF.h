@@ -25,6 +25,7 @@ struct LoaderSection
 
 struct SectionData
 {
+    uint8_t id;
     uint8_t type;
     uint8_t* data;
     uint32_t length;
@@ -114,14 +115,19 @@ void ProcessLoaderSection(uint8_t* loaderSection, struct LoaderSection* pSection
     printf("\t%u exported symbols\n", pSection->exportSymbolCount);
 }
 
-void ProcessCodeSection(struct SectionData* pSection)
+void ProcessCodeSection(struct SectionData* pSection, struct LoaderSection* pLoader)
 {
     uint8_t inst[4];
+    uint32_t mainOffset = (pSection->id == pLoader->mainSection) ? pLoader->mainOffset : 0x00000001;
     for (uint32_t i = 0; i < pSection->length; i += 4)
     {
         memcpy(&inst, pSection->data + i, 4);
+        if (i == mainOffset)
+        {
+            printf("main:\n");
+        }
         printf("0x%08x\t%02x %02x %02x %02x\t", i, inst[0], inst[1], inst[2], inst[3]);
-        PrintOpcode(inst);
+        PrintOpcode(i, inst);
         printf("\n");
     }
 }
@@ -169,6 +175,7 @@ void ReadPEFSection(uint16_t sectionIndex, FILE* input, struct LoaderSection* pL
     }
     printf("\n");
 
+    pSection->id = sectionIndex + 1;
     pSection->type = section[24];
     pSection->data = NULL;
     switch (pSection->type)
@@ -225,7 +232,7 @@ void ProcessPEF(FILE* input)
         switch (sections[i]->type)
         {
             case 0:
-                ProcessCodeSection(sections[i]);
+                ProcessCodeSection(sections[i], &loader);
                 break;
             case 4:
                 // Loader - already handled
