@@ -5,58 +5,83 @@
 #include "../Common.h"
 #include "Opcodes.h"
 
-void ProcessLoaderSection(uint8_t* loaderSection)
+struct LoaderSection
+{
+    uint32_t mainSection;
+    uint32_t mainOffset;
+    uint32_t initSection;
+    uint32_t initOffset;
+    uint32_t termSection;
+    uint32_t termOffset;
+    uint32_t importLibraryCount;
+    uint32_t importSymbolCount;
+    uint32_t relocSectionCount;
+    uint32_t relocInstCount;
+    uint32_t loaderStringOffset;
+    uint32_t exportHashOffset;
+    uint32_t exportHashTablePower;
+    uint32_t exportSymbolCount;
+};
+
+struct SectionData
+{
+    uint8_t type;
+    uint8_t* data;
+    uint32_t length;
+};
+
+void ProcessLoaderSection(uint8_t* loaderSection, struct LoaderSection* pSection)
 {
     uint8_t header[56];
     memcpy(&header, loaderSection, 56);
 
-    uint32_t mainSection = OSReadBigInt32(header, 0);
-    uint32_t mainOffset = OSReadBigInt32(header, 4);
-    uint32_t initSection = OSReadBigInt32(header, 8);
-    uint32_t initOffset = OSReadBigInt32(header, 12);
-    uint32_t termSection = OSReadBigInt32(header, 16);
-    uint32_t termOffset = OSReadBigInt32(header, 20);
-    uint32_t importLibraryCount = OSReadBigInt32(header, 24);
-    uint32_t importSymbolCount = OSReadBigInt32(header, 28);
-    uint32_t relocSectionCount = OSReadBigInt32(header, 32);
-    uint32_t relocInstCount = OSReadBigInt32(header, 36);
-    uint32_t loaderStringOffset = OSReadBigInt32(header, 40);
-    uint32_t exportHashOffset = OSReadBigInt32(header, 44);
-    uint32_t exportHashTablePower = OSReadBigInt32(header, 48);
-    uint32_t exportSymbolCount = OSReadBigInt32(header, 52);
+    pSection->mainSection = OSReadBigInt32(header, 0);
+    pSection->mainOffset = OSReadBigInt32(header, 4);
+    pSection->initSection = OSReadBigInt32(header, 8);
+    pSection->initOffset = OSReadBigInt32(header, 12);
+    pSection->termSection = OSReadBigInt32(header, 16);
+    pSection->termOffset = OSReadBigInt32(header, 20);
+    pSection->importLibraryCount = OSReadBigInt32(header, 24);
+    pSection->importSymbolCount = OSReadBigInt32(header, 28);
+    pSection->relocSectionCount = OSReadBigInt32(header, 32);
+    pSection->relocInstCount = OSReadBigInt32(header, 36);
+    pSection->loaderStringOffset = OSReadBigInt32(header, 40);
+    pSection->exportHashOffset = OSReadBigInt32(header, 44);
+    pSection->exportHashTablePower = OSReadBigInt32(header, 48);
+    pSection->exportSymbolCount = OSReadBigInt32(header, 52);
 
     printf("Loader information:\n");
-    if (mainSection != 0xFFFFFFFF)
+    if (pSection->mainSection != 0xFFFFFFFF)
     {
-        printf("\tMain symbol in section %u at offset 0x%08x\n", mainSection, mainOffset);
+        printf("\tMain symbol in section %u at offset 0x%08x\n", pSection->mainSection, pSection->mainOffset);
     }
     else
     {
         printf("\tNo main symbol\n");
     }
-    if (initSection != 0xFFFFFFFF)
+    if (pSection->initSection != 0xFFFFFFFF)
     {
-        printf("\tInitialization function vector in section %u at offset 0x%08x\n", initSection, initOffset);
+        printf("\tInitialization function vector in section %u at offset 0x%08x\n", pSection->initSection, pSection->initOffset);
     }
     else
     {
         printf("\tNo initialization function vector\n");
     }
-    if (termSection != 0xFFFFFFFF)
+    if (pSection->termSection != 0xFFFFFFFF)
     {
-        printf("\tTermination function vector in section %u at offset 0x%08x\n", termSection, termOffset);
+        printf("\tTermination function vector in section %u at offset 0x%08x\n", pSection->termSection, pSection->termOffset);
     }
     else
     {
         printf("\tNo termination function vector\n");
     }
 
-    printf("\t%u imported symbols from %u libraries\n", importSymbolCount, importLibraryCount);
+    printf("\t%u imported symbols from %u libraries\n", pSection->importSymbolCount, pSection->importLibraryCount);
     uint8_t libraryDescription[24];
     uint8_t symbolTableEntry[4];
 
-    uint32_t offsetToImportTable = (importLibraryCount * 24) + 56;
-    for (uint32_t i = 0; i < importLibraryCount; i++)
+    uint32_t offsetToImportTable = (pSection->importLibraryCount * 24) + 56;
+    for (uint32_t i = 0; i < pSection->importLibraryCount; i++)
     {
         memcpy(&libraryDescription, loaderSection + 56 + (i * 24), 24);
         uint32_t nameOffset = OSReadBigInt32(libraryDescription, 0);
@@ -66,14 +91,14 @@ void ProcessLoaderSection(uint8_t* loaderSection)
         uint32_t firstSymbol = OSReadBigInt32(libraryDescription, 16);
         uint8_t options = libraryDescription[20];
 
-        printf("\t\t'%s' imports %u symbols\n", loaderSection + loaderStringOffset + nameOffset, symbolCount);
+        printf("\t\t'%s' imports %u symbols\n", loaderSection + pSection->loaderStringOffset + nameOffset, symbolCount);
         for (uint32_t j = 0; j < symbolCount; j++)
         {
             memcpy(&symbolTableEntry, loaderSection + offsetToImportTable + ((j + firstSymbol) * 4), 4);
             uint8_t symbolClass = symbolTableEntry[0];
             symbolTableEntry[0] = 0x00;
             uint32_t symbolNameOffset = OSReadBigInt32(symbolTableEntry, 0);
-            printf("\t\t\t%s ", loaderSection + loaderStringOffset + symbolNameOffset);
+            printf("\t\t\t%s ", loaderSection + pSection->loaderStringOffset + symbolNameOffset);
             switch(symbolClass & 0x0F)
             {
                 case 0x00: printf("(code address)"); break;
@@ -86,22 +111,22 @@ void ProcessLoaderSection(uint8_t* loaderSection)
             printf("\n");
         }
     }
-    printf("\t%u exported symbols\n", exportSymbolCount);
+    printf("\t%u exported symbols\n", pSection->exportSymbolCount);
 }
 
-void ProcessCodeSection(uint8_t* codeSection, uint32_t sectionLength)
+void ProcessCodeSection(struct SectionData* pSection)
 {
     uint8_t inst[4];
-    for (uint32_t i = 0; i < sectionLength; i += 4)
+    for (uint32_t i = 0; i < pSection->length; i += 4)
     {
-        memcpy(&inst, codeSection + i, 4);
+        memcpy(&inst, pSection->data + i, 4);
         printf("0x%08x\t%02x %02x %02x %02x\t", i, inst[0], inst[1], inst[2], inst[3]);
         PrintOpcode(inst);
         printf("\n");
     }
 }
 
-void ProcessPEFSection(uint16_t sectionIndex, FILE* input)
+void ReadPEFSection(uint16_t sectionIndex, FILE* input, struct LoaderSection* pLoaderSection, struct SectionData* pSection)
 {
     uint16_t sectionOffset = 40 + (sectionIndex * 28);
     uint8_t section[28];
@@ -144,21 +169,22 @@ void ProcessPEFSection(uint16_t sectionIndex, FILE* input)
     }
     printf("\n");
 
-    if (section[24] == 0x04)
+    pSection->type = section[24];
+    pSection->data = NULL;
+    switch (pSection->type)
     {
-        uint8_t* loaderSection = malloc(packedSize);
-        fseek(input, containerOffset, SEEK_SET);
-        fread(loaderSection, packedSize, 1, input);
-        ProcessLoaderSection(loaderSection);
-        free(loaderSection);
-    }
-    else if (section[24] == 0x00)
-    {
-        uint8_t* codeSection = malloc(packedSize);
-        fseek(input, containerOffset, SEEK_SET);
-        fread(codeSection, packedSize, 1, input);
-        ProcessCodeSection(codeSection, packedSize);
-        free(codeSection);
+        case 0x04:
+            pSection->data = malloc(packedSize);
+            pSection->length = packedSize;
+            fseek(input, containerOffset, SEEK_SET);
+            fread(pSection->data, packedSize, 1, input);
+            ProcessLoaderSection(pSection->data, pLoaderSection);
+            break;
+        default:
+            pSection->data = malloc(packedSize);
+            pSection->length = packedSize;
+            fseek(input, containerOffset, SEEK_SET);
+            fread(pSection->data, packedSize, 1, input);
     }
 }
 
@@ -185,10 +211,39 @@ void ProcessPEF(FILE* input)
 
     uint16_t sectionCount = OSReadBigInt16(header, 32);
     uint16_t instSectionCount = OSReadBigInt16(header, 34);
+
+    struct LoaderSection loader;
+    struct SectionData** sections = malloc(sizeof(struct SectionData*) * sectionCount);
     for (uint16_t i = 0; i < sectionCount; i++)
     {
-        ProcessPEFSection(i, input);
+        sections[i] = malloc(sizeof(struct SectionData));
+        ReadPEFSection(i, input, &loader, sections[i]);
     }
+
+    for (uint16_t i = 0; i < sectionCount; i++)
+    {
+        switch (sections[i]->type)
+        {
+            case 0:
+                ProcessCodeSection(sections[i]);
+                break;
+            case 4:
+                // Loader - already handled
+                break;
+            default:
+                printf("DEBUG: No detailed analysis of section type %d\n", sections[i]->type);
+        }
+    }
+
+    for (uint16_t i = 0; i < sectionCount; i++)
+    {
+        if (sections[i]->data != NULL)
+        {
+            free(sections[i]->data);
+        }
+        free(sections[i]);
+    }
+    free(sections);
 }
 
 #endif
