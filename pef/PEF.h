@@ -124,9 +124,9 @@ void ProcessCodeSection(struct SectionData* pSection, struct LoaderSection* pLoa
         memcpy(&inst, pSection->data + i, 4);
         if (i == mainOffset)
         {
-            printf("main:\n");
+            printf("\n%016x <main>:\n", mainOffset);
         }
-        printf("0x%08x\t%02x %02x %02x %02x\t", i, inst[0], inst[1], inst[2], inst[3]);
+        printf("%8x:\t%02x %02x %02x %02x\t\t", i, inst[0], inst[1], inst[2], inst[3]);
         PrintOpcode(i, inst);
         printf("\n");
     }

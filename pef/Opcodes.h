@@ -3,29 +3,32 @@
 
 #include <stdbool.h>
 
+#define INSTR_BUFFER_SIZE 10
+#define INSTR_BUFFER_APPEND(x) snprintf(instrBuffer + strlen(instrBuffer), INSTR_BUFFER_SIZE - strlen(instrBuffer), x)
+#define PARAM_BUFFER_SIZE 128
+
 #define S64_EXT_16(v) v * ((v & 0x8000) ? -1 : 1)
 #define S64_EXT_24(v) v * ((v & 0x800000) ? -1 : 1)
 
-#define CASE_PRINT(x, y) case x: printf(#y);
-#define PRINT_RC if (inst[3] & 0x01) printf(".");
+#define CASE_PRINT(x, y) case x: snprintf(instrBuffer, INSTR_BUFFER_SIZE, "%s", #y);
 
-#define A_FORM PrintAForm(inst, opcode)
-#define B_FORM PrintBForm(inst, opcode)
-#define D_FORM PrintDForm(inst, opcode)
-#define DS_FORM PrintDSForm(inst, opcode)
-#define I_FORM PrintIForm(inst, opcode)
-#define M_FORM PrintMForm(inst, opcode)
-#define MD_FORM PrintMDForm(inst, opcode)
-#define X_FORM PrintXForm(inst, opcode, extOpcode)
-#define XL_FORM PrintXLForm(inst, opcode, extOpcode)
+#define A_FORM PrintAForm(inst, opcode, instrBuffer, paramBuffer)
+#define B_FORM PrintBForm(inst, opcode, instrBuffer, paramBuffer)
+#define D_FORM PrintDForm(inst, opcode, instrBuffer, paramBuffer)
+#define DS_FORM PrintDSForm(inst, opcode, instrBuffer, paramBuffer)
+#define I_FORM PrintIForm(inst, opcode, instrBuffer, paramBuffer)
+#define M_FORM PrintMForm(inst, opcode, instrBuffer, paramBuffer)
+#define MD_FORM PrintMDForm(inst, opcode, instrBuffer, paramBuffer)
+#define X_FORM PrintXForm(inst, opcode, extOpcode, instrBuffer, paramBuffer)
+#define XL_FORM PrintXLForm(inst, opcode, extOpcode, instrBuffer, paramBuffer)
 
-void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
+void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode, char* instrBuffer, char* paramBuffer)
 {
     uint8_t rst = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t ra = (inst[1] & 0x1F);
     uint8_t rb = (inst[2] & 0xF8) >> 3;
 
-    if (inst[3] & 0x01) printf(".");
+    if (inst[3] & 0x01) INSTR_BUFFER_APPEND(".");
 
     switch (extOpcode)
     {
@@ -87,14 +90,14 @@ void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
         case 539:
         case 792:
         case 794:
-            printf("\tr%d, r%d, r%d", ra, rst, rb);
+            snprintf(paramBuffer, PARAM_BUFFER_SIZE, "r%d, r%d, r%d", ra, rst, rb);
             break;
         case 0:
         case 32:
             {
                 uint8_t bf = ((rst & 0xFC) >> 2);
                 uint8_t l = rst & 0x01;
-                printf("\t%d, %d, r%d, r%d", bf, l, ra, rb);
+                snprintf(paramBuffer, PARAM_BUFFER_SIZE, "%d, %d, r%d, r%d", bf, l, ra, rb);
             }
             break;
         case 26:
@@ -103,7 +106,7 @@ void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
         case 922:
         case 954:
         case 986:
-            printf("\tr%d, r%d", ra, rst);
+            snprintf(paramBuffer, PARAM_BUFFER_SIZE, "r%d, r%d", ra, rst);
             break;
         case 21:
         case 23:
@@ -131,43 +134,43 @@ void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
         case 662:
         case 790:
         case 918:
-            printf("\tr%d, r%d, r%d", rst, ra, rb);
+            snprintf(paramBuffer, PARAM_BUFFER_SIZE, "r%d, r%d, r%d", rst, ra, rb);
             break;
         case 597:
         case 725:
-            printf("\tr%d, r%d, %d", rst, ra, rb);
+            snprintf(paramBuffer, PARAM_BUFFER_SIZE, "r%d, r%d, %d", rst, ra, rb);
             break;
         case 824:
-            printf("\tr%d, r%d, %d", ra, rst, rb);
+            snprintf(paramBuffer, PARAM_BUFFER_SIZE, "r%d, r%d, %d", ra, rst, rb);
             break;
         default: printf("\tDEBUG: unrecognized extended opcode %d for opcode 31", extOpcode);
     }
 }
 
-void PrintIForm(uint8_t* inst, uint8_t opcode)
+void PrintIForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
 {
     uint32_t target = OSReadBigInt32(inst, 0);
     target = (target & 0x03FFFFFC) >> 2;
     int64_t value = S64_EXT_24(target);
 
-    if (inst[3] & 0x01) printf("l");
-    if (inst[3] & 0x02) printf("a");
-    printf("\t%lld", value);
+    if (inst[3] & 0x01) INSTR_BUFFER_APPEND("l");
+    if (inst[3] & 0x02) INSTR_BUFFER_APPEND("a");
+    snprintf(paramBuffer, PARAM_BUFFER_SIZE, "%lld", value);
 }
 
-void PrintBForm(uint8_t* inst, uint8_t opcode)
+void PrintBForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
 {
     uint8_t bo = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t bi = (inst[1] & 0x1F);
     uint16_t target = (OSReadBigInt16(inst, 2) & 0xFFFC) >> 2;
     int64_t value = S64_EXT_16(target);
 
-    if (inst[3] & 0x01) printf("l");
-    if (inst[3] & 0x02) printf("a");
-    printf("\t%d, %d, %lld", bo, bi, value);
+    if (inst[3] & 0x01) INSTR_BUFFER_APPEND("l");
+    if (inst[3] & 0x02) INSTR_BUFFER_APPEND("a");
+    snprintf(paramBuffer, PARAM_BUFFER_SIZE, "%d, %d, %lld", bo, bi, value);
 }
 
-void PrintAForm(uint8_t* inst, uint8_t opcode)
+void PrintAForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
 {
     uint8_t rst = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t ra = (inst[1] & 0x1F);
@@ -191,46 +194,46 @@ void PrintAForm(uint8_t* inst, uint8_t opcode)
         CASE_PRINT(31, fnmadd); break;
     }
 
-    if (opcode == 59) printf("s");
-    if (inst[3] & 0x0) printf(".");
+    if (opcode == 59) INSTR_BUFFER_APPEND("s");
+    if (inst[3] & 0x0) INSTR_BUFFER_APPEND(".");
 
     switch (xo)
     {
         case 18:
         case 20:
         case 21:
-            printf("\tfpr%d, fpr%d, fpr%d", rst, ra, rb);
+            snprintf(paramBuffer, PARAM_BUFFER_SIZE, "fpr%d, fpr%d, fpr%d", rst, ra, rb);
             break;
         case 25:
-            printf("\tfpr%d, fpr%d, fpr%d", rst, ra, rc);
+            snprintf(paramBuffer, PARAM_BUFFER_SIZE, "fpr%d, fpr%d, fpr%d", rst, ra, rc);
             break;
         case 23:
         case 28:
         case 29:
         case 30:
         case 31:
-            printf("\tfpr%d, fpr%d, fpr%d, fpr%d", rst, ra, rc, rb);
+            snprintf(paramBuffer, PARAM_BUFFER_SIZE, "fpr%d, fpr%d, fpr%d, fpr%d", rst, ra, rc, rb);
             break;
         case 22:
         case 24:
         case 26:
-            printf("\tfpr%d, fpr%d", rst, rb);
+            snprintf(paramBuffer, PARAM_BUFFER_SIZE, "fpr%d, fpr%d", rst, rb);
             break;
         default: printf("\tDEBUG: unrecognized extended opcode %d for opcode %d", xo, opcode);
     }
 }
 
-void PrintXFLForm(uint8_t* inst, uint8_t opcode)
+void PrintXFLForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
 {
     uint8_t flm = ((inst[0] & 0x01) << 7) | ((inst[1] & 0xFE) >> 1);
     uint8_t frb = (inst[2] & 0xF8) >> 3;
 
-    printf("mtfsf");
-    if (inst[3] & 0x01) printf(".");
-    printf("\t%d, fpr%d", flm, frb);
+    snprintf(instrBuffer, INSTR_BUFFER_SIZE, "mtfsf");
+    if (inst[3] & 0x01) INSTR_BUFFER_APPEND(".");
+    snprintf(paramBuffer, PARAM_BUFFER_SIZE, "%d, fpr%d", flm, frb);
 }
 
-void PrintXLForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
+void PrintXLForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode, char* instrBuffer, char* paramBuffer)
 {
     uint8_t bt = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t ba = (inst[1] & 0x1F);
@@ -242,7 +245,7 @@ void PrintXLForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
             {
                 uint8_t bf = (bt & 0x1C) >> 2;
                 uint8_t bfa = (ba & 0x1E) >> 1;
-                printf("\t%d, %d", bf, bfa);
+                snprintf(paramBuffer, PARAM_BUFFER_SIZE, "%d, %d", bf, bfa);
             }
             break;
         case 33:
@@ -253,20 +256,20 @@ void PrintXLForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
         case 289:
         case 417:
         case 449:
-            printf("\t%d, %d, %d", bt, ba, bb);
+            snprintf(paramBuffer, PARAM_BUFFER_SIZE, "%d, %d, %d", bt, ba, bb);
             break;
         case 16:
         case 528:
             {
                 uint8_t bh = (bb & 0x03);
-                printf("\t%d, %d, %d", bt, ba, bh);
+                snprintf(paramBuffer, PARAM_BUFFER_SIZE, "%d, %d, %d", bt, ba, bh);
             }
             break;
         default: printf("\tDEBUG: unrecognized extended opcode %d for opcode %d", extOpcode, opcode);
     }
 }
 
-void PrintFloatingXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
+void PrintFloatingXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode, char* instrBuffer, char* paramBuffer)
 {
     uint8_t rst = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t frb = (inst[2] & 0xF8) >> 3;
@@ -297,7 +300,7 @@ void PrintFloatingXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
             return;
     }
 
-    if (inst[3] & 0x01) printf(".");
+    if (inst[3] & 0x01) INSTR_BUFFER_APPEND(".");
 
     switch (extOpcode)
     {
@@ -311,35 +314,35 @@ void PrintFloatingXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode)
         case 814:
         case 815:
         case 846:
-            printf("\tfpr%d, fpr%d", rst, frb);
+            snprintf(paramBuffer, PARAM_BUFFER_SIZE, "fpr%d, fpr%d", rst, frb);
             break;
         case 0:
         case 32:
-            printf("\t%d, fpr%d, fpr%d", bf, fra, frb);
+            snprintf(paramBuffer, PARAM_BUFFER_SIZE, "%d, fpr%d, fpr%d", bf, fra, frb);
             break;
         case 64:
             {
                 uint8_t bfa = (fra & 0xF0) >> 4;
-                printf("\t%d, %d", bf, bfa);
+                snprintf(paramBuffer, PARAM_BUFFER_SIZE, "%d, %d", bf, bfa);
             }
             break;
         case 134:
             {
                 uint8_t u = (frb & 0xFE) >> 1;
-                printf("\t%d, %d", bf, u);
+                snprintf(paramBuffer, PARAM_BUFFER_SIZE, "%d, %d", bf, u);
             }
             break;
         case 583:
-            printf("\tfpr%d", rst);
+            snprintf(paramBuffer, PARAM_BUFFER_SIZE, "fpr%d", rst);
             break;
         case 38:
         case 70:
-            printf("\t%d", rst);
+            snprintf(paramBuffer, PARAM_BUFFER_SIZE, "%d", rst);
             break;
     }
 }
 
-void PrintMForm(uint8_t* inst, uint8_t opcode)
+void PrintMForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
 {
     uint8_t rst = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t ra = (inst[1] & 0x1F);
@@ -355,11 +358,11 @@ void PrintMForm(uint8_t* inst, uint8_t opcode)
         mask <<= mb;
     }
 
-    if (inst[3] & 0x01) printf(".");
-    printf("\tr%d, r%d, %d, 0x%016llx", rst, ra, sh, mask);
+    if (inst[3] & 0x01) INSTR_BUFFER_APPEND(".");
+    snprintf(paramBuffer, PARAM_BUFFER_SIZE, "r%d, r%d, %d, 0x%016llx", rst, ra, sh, mask);
 }
 
-void PrintDSForm(uint8_t* inst, uint8_t opcode)
+void PrintDSForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
 {
     uint8_t rst = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t ra = (inst[1] & 0x1F);
@@ -383,7 +386,7 @@ void PrintDSForm(uint8_t* inst, uint8_t opcode)
     }
     else if (opcode == 62)
     {
-        if (xo == 1) printf("u");
+        if (xo == 1) INSTR_BUFFER_APPEND("u");
         if (ra == 0)
         {
             printf("\t** Invalid instruction form in opcode 62");
@@ -403,10 +406,10 @@ void PrintDSForm(uint8_t* inst, uint8_t opcode)
         printf("\tDEBUG: Called PrintDSForm with unexpected opcode %d", opcode);
         return;
     }
-    printf("\tr%d, %lld(r%d)", rst, signextvalue, ra);
+    snprintf(paramBuffer, PARAM_BUFFER_SIZE, "r%d, %lld(r%d)", rst, signextvalue, ra);
 }
 
-void PrintDForm(uint8_t* inst, uint8_t opcode)
+void PrintDForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
 {
     uint8_t rst = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t ra = (inst[1] & 0x1F);
@@ -415,27 +418,27 @@ void PrintDForm(uint8_t* inst, uint8_t opcode)
 
     if (opcode == 2 || opcode == 3) // Fixed point trap instructions
     {
-        printf("\t0x%02x, r%d, %lld", rst, ra, signextvalue);
+        snprintf(paramBuffer, PARAM_BUFFER_SIZE, "0x%02x, r%d, %lld", rst, ra, signextvalue);
     }
     else if (opcode == 10) // cmpli
     {
-        printf("\tr%d, %u", ra, value);
+        snprintf(paramBuffer, PARAM_BUFFER_SIZE, "r%d, %u", ra, value);
     }
     else if (opcode == 11) // cmpi
     {
-        printf("\tr%d, %lld", ra, signextvalue);
+        snprintf(paramBuffer, PARAM_BUFFER_SIZE, "r%d, %lld", ra, signextvalue);
     }
     else if (opcode >= 48 && opcode <= 55) // FPR instructions
     {
-        printf("\tfpr%d, %lld(r%d)", rst, signextvalue, ra);
+        snprintf(paramBuffer, PARAM_BUFFER_SIZE, "fpr%d, %lld(r%d)", rst, signextvalue, ra);
     }
     else
     {
-        printf("\tr%d, %lld(r%d)", rst, signextvalue, ra);
+        snprintf(paramBuffer, PARAM_BUFFER_SIZE, "r%d, %lld(r%d)", rst, signextvalue, ra);
     }
 }
 
-void PrintMDForm(uint8_t* inst, uint8_t opcode)
+void PrintMDForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
 {
     uint8_t rs = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t ra = (inst[1] & 0x1F);
@@ -457,7 +460,7 @@ void PrintMDForm(uint8_t* inst, uint8_t opcode)
             return;
     }
 
-    if (inst[3] & 0x01) printf(".");
+    if (inst[3] & 0x01) INSTR_BUFFER_APPEND(".");
 
     uint64_t mask = 0;
     if (xo == 0 || xo == 2 || xo == 3 || xo == 8)
@@ -474,31 +477,31 @@ void PrintMDForm(uint8_t* inst, uint8_t opcode)
 
     if (xo == 8 || xo == 9)
     {
-        printf("\tr%d, r%d, r%d, 0x%016llx", ra, rs, rb, mask);
+        snprintf(paramBuffer, PARAM_BUFFER_SIZE, "r%d, r%d, r%d, 0x%016llx", ra, rs, rb, mask);
     }
     else
     {
-        printf("\tr%d, r%d, %d, 0x%016llx", ra, rs, sh, mask);
+        snprintf(paramBuffer, PARAM_BUFFER_SIZE, "r%d, r%d, %d, 0x%016llx", ra, rs, sh, mask);
     }
 }
 
-void HandleOpcode63(uint8_t* inst, uint8_t opcode)
+void HandleOpcode63(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
 {
     uint8_t aExtOpcode = (inst[3] & 0x3E) >> 1;
     if (aExtOpcode >= 18 && aExtOpcode <= 31)
     {
-        PrintAForm(inst, opcode);
+        PrintAForm(inst, opcode, instrBuffer, paramBuffer);
         return;
     }
 
     uint16_t xExtOpcode = (OSReadBigInt16(inst, 2) & 0x07FE) >> 1;
     if (xExtOpcode == 711)
     {
-        PrintXFLForm(inst, opcode);
+        PrintXFLForm(inst, opcode, instrBuffer, paramBuffer);
     }
     else
     {
-        PrintFloatingXForm(inst, opcode, xExtOpcode);
+        PrintFloatingXForm(inst, opcode, xExtOpcode, instrBuffer, paramBuffer);
     }
 }
 
@@ -506,6 +509,13 @@ bool PrintOpcode(uint32_t instAddress, uint8_t* inst)
 {
     uint8_t opcode = (inst[0] & 0xFC) >> 2;
     uint16_t extOpcode = ((inst[2] & 0x07) << 7) | (inst[3] >> 1);
+
+    char instrBuffer[INSTR_BUFFER_SIZE];
+    memset(&instrBuffer, 0, INSTR_BUFFER_SIZE);
+
+    char paramBuffer[PARAM_BUFFER_SIZE];
+    memset(&paramBuffer, 0, PARAM_BUFFER_SIZE);
+
     switch (opcode)
     {
         case 0x00: printf("Illegal!"); break;
@@ -707,9 +717,11 @@ bool PrintOpcode(uint32_t instAddress, uint8_t* inst)
         CASE_PRINT(60, stfq);  DS_FORM; break;
         CASE_PRINT(61, stfqu); DS_FORM; break;
         CASE_PRINT(62, std);   DS_FORM; break;
-        case 63: HandleOpcode63(inst, opcode); break;
+        case 63: HandleOpcode63(inst, opcode, instrBuffer, paramBuffer); break;
         default: printf("DEBUG: Unknown opcode %d", opcode); return false;
     }
+
+    printf("%-7s\t%s", instrBuffer, paramBuffer);
     return true;
 }
 
