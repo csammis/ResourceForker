@@ -52,7 +52,7 @@ void ProcessLoaderSection(uint8_t* loaderSection, struct LoaderSection* pSection
     pSection->exportHashTablePower = OSReadBigInt32(header, 48);
     pSection->exportSymbolCount = OSReadBigInt32(header, 52);
 
-    printf("Loader information:\n");
+    printf("\nLoader information:\n");
     if (pSection->mainSection != 0xFFFFFFFF)
     {
         printf("\tMain symbol in section %u at offset 0x%08x\n", pSection->mainSection, pSection->mainOffset);
@@ -147,6 +147,7 @@ void ProcessCodeSection(struct SectionData* pSection, struct LoaderSection* pLoa
         }
     }
 
+    printf("\nCode section %d disassembly:\n", pSection->id);
     for (uint32_t i = 0, addr = 0; i < instructionCount; i++, addr += 4)
     {
         struct CodeInstruction* instr = instructions[i];
@@ -233,6 +234,7 @@ void ReadPEFSection(uint16_t sectionIndex, FILE* input, struct LoaderSection* pL
             pSection->length = packedSize;
             fseek(input, containerOffset, SEEK_SET);
             fread(pSection->data, packedSize, 1, input);
+            printf("\n");
             ProcessLoaderSection(pSection->data, pLoaderSection);
             break;
         default:
