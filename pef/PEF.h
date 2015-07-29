@@ -311,16 +311,22 @@ uint32_t ReadOnePatternArgument(uint8_t* pData, bool firstArgument, uint32_t ind
     return arg;
 }
 
-void ProcessPatternDataSection(struct SectionData* pSection, uint8_t* unpackedData)
+void InflatePatternDataSection(struct SectionData* pSection)
 {
     uint32_t dataLocationCount = 0;
+    // Copy the section data pointer and create it again with the new total size
+    uint8_t* packedData = malloc(pSection->length);
+    memcpy(packedData, pSection->data, pSection->length);
+    free(pSection->data);
+    pSection->data = malloc(pSection->totalLength);
 
+    uint8_t* unpackedData = pSection->data;
     memset(unpackedData, 0, pSection->totalLength);
 
     for (uint32_t i = 0, instCount = 0; i < pSection->length; instCount++)
     {
-        uint8_t opcode = PATTERN_DATA_OPCODE(pSection->data[i]);
-        uint32_t count = ReadOnePatternArgument(pSection->data, true, i, &i);
+        uint8_t opcode = PATTERN_DATA_OPCODE(packedData[i]);
+        uint32_t count = ReadOnePatternArgument(packedData, true, i, &i);
 
         switch (opcode)
         {
@@ -329,16 +335,16 @@ void ProcessPatternDataSection(struct SectionData* pSection, uint8_t* unpackedDa
                 dataLocationCount += count;
                 break;
             case 1: // blockCopy
-                memcpy(unpackedData + dataLocationCount, pSection->data + i, count);
+                memcpy(unpackedData + dataLocationCount, packedData + i, count);
                 dataLocationCount += count;
                 i += count;
                 break;
             case 2: // repeatedBlock
                 {
-                    uint32_t repeatCount = ReadOnePatternArgument(pSection->data, false, i, &i);
+                    uint32_t repeatCount = ReadOnePatternArgument(packedData, false, i, &i);
                     for (uint32_t j = 0; j < repeatCount; j++)
                     {
-                        memcpy(unpackedData + dataLocationCount, pSection->data + i, count);
+                        memcpy(unpackedData + dataLocationCount, packedData + i, count);
                         dataLocationCount += count;
                     }
                     i += (repeatCount * count);
@@ -346,28 +352,28 @@ void ProcessPatternDataSection(struct SectionData* pSection, uint8_t* unpackedDa
                 break;
             case 3:
                 {
-                    uint32_t customSize = ReadOnePatternArgument(pSection->data, false, i, &i);
-                    uint32_t repeatCount = ReadOnePatternArgument(pSection->data, false, i, &i);
+                    uint32_t customSize = ReadOnePatternArgument(packedData, false, i, &i);
+                    uint32_t repeatCount = ReadOnePatternArgument(packedData, false, i, &i);
 
                     for (uint32_t j = 0; j < repeatCount; j++)
                     {
                         // Common data
-                        memcpy(unpackedData + dataLocationCount, pSection->data + i, count);
+                        memcpy(unpackedData + dataLocationCount, packedData + i, count);
                         dataLocationCount += count;
                         // Custom data j
-                        memcpy(unpackedData + dataLocationCount, pSection->data + i + count + (j * customSize), customSize);
+                        memcpy(unpackedData + dataLocationCount, packedData + i + count + (j * customSize), customSize);
                         dataLocationCount += customSize;
                     }
 
-                    memcpy(unpackedData + dataLocationCount, pSection->data + i, count);
+                    memcpy(unpackedData + dataLocationCount, packedData + i, count);
                     dataLocationCount += count;
                     i += (count + (customSize * repeatCount));
                 }
                 break;
             case 4:
                 {
-                    uint32_t customSize = ReadOnePatternArgument(pSection->data, false, i, &i);
-                    uint32_t repeatCount = ReadOnePatternArgument(pSection->data, false, i, &i);
+                    uint32_t customSize = ReadOnePatternArgument(packedData, false, i, &i);
+                    uint32_t repeatCount = ReadOnePatternArgument(packedData, false, i, &i);
 
                     for (uint32_t j = 0; j < repeatCount; j++)
                     {
@@ -375,7 +381,7 @@ void ProcessPatternDataSection(struct SectionData* pSection, uint8_t* unpackedDa
                         memset(unpackedData + dataLocationCount, 0, count);
                         dataLocationCount += count;
                         // Custom data j
-                        memcpy(unpackedData + dataLocationCount, pSection->data + i + count + (j * customSize), customSize);
+                        memcpy(unpackedData + dataLocationCount, packedData + i + count + (j * customSize), customSize);
                         dataLocationCount += customSize;
                     }
 
@@ -389,20 +395,7 @@ void ProcessPatternDataSection(struct SectionData* pSection, uint8_t* unpackedDa
         }
     }
 
-    FILE* out = fopen("data.dat", "w");
-    fwrite(unpackedData, pSection->totalLength, 1, out);
-    fclose(out);
-
-    printf("\nPattern-initialized data section %d:\n", pSection->id);
-    for (uint32_t i = 0; i < pSection->totalLength; i += 16)
-    {
-        printf("%16x:\t[ ", i);
-        for (uint32_t j = 0; j < 16; j++)
-        {
-            printf("%02x ", unpackedData[i + j]);
-        }
-        printf("]\n");
-    }
+    free(packedData);
 }
 
 void ReadPEFSection(uint16_t sectionIndex, FILE* input, struct SectionData* pSection)
@@ -496,8 +489,7 @@ void ProcessPEF(FILE* input)
         }
         else if (sections[i]->type == 2)
         {
-            dataSection = malloc(sections[i]->totalLength);
-            ProcessPatternDataSection(sections[i], dataSection);
+            InflatePatternDataSection(sections[i]);
         }
     }
 
