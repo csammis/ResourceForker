@@ -17,7 +17,7 @@ struct LoaderSection
     uint32_t importLibraryCount;
     uint32_t importSymbolCount;
     uint32_t relocSectionCount;
-    uint32_t relocInstCount;
+    uint32_t relocInstOffset;
     uint32_t loaderStringOffset;
     uint32_t exportHashOffset;
     uint32_t exportHashTablePower;
@@ -32,6 +32,98 @@ struct SectionData
     uint32_t length;
     uint32_t totalLength;
 };
+
+void ProcessRelocationArea(uint8_t* data, uint32_t sectionCount, uint32_t headerOffset, uint32_t areaOffset)
+{
+    for (uint32_t section = 0; section < sectionCount; section++)
+    {
+        uint32_t thisOffset = headerOffset + (section * 12);
+        uint16_t affectedSection = OSReadBigInt16(data, thisOffset);
+        uint32_t relocCount = OSReadBigInt32(data, thisOffset + 4);
+        uint32_t firstRelocOffset = OSReadBigInt32(data, thisOffset + 8);
+
+        printf("\t\tGoing to read %d relocation instruction blocks for section %d\n", relocCount, affectedSection);
+
+        uint32_t instOffset = areaOffset + firstRelocOffset;
+
+        uint32_t relocAddress = 0; // section base address
+        uint32_t importIndex = 0;
+        uint32_t sectionC = 0; // section 0
+        uint32_t sectionD = 0; // section 1
+        
+        uint32_t byImportCount = 0;
+
+        for (uint32_t i = 0; i < relocCount; i++)
+        {
+            uint8_t block[2];
+            memcpy(block, data + instOffset + (i * 2), 2);
+
+            printf("\t\t\t");
+            if ((block[0] & 0xC0) == 0)
+            {
+                printf("RelocBySectDWithSkip");
+            }
+            else
+            {
+                uint8_t opcode = (block[0] & 0xFE) >> 1;
+                switch (opcode & 0xF0)
+                {
+                    case 0x20:
+                        {
+                            switch (opcode)
+                            {
+                                case 0x20: printf("RelocBySectC"); break;
+                                case 0x21: printf("kPEFRelocBySectD"); break;
+                                case 0x22: printf("kPEFRelocTVector12"); break;
+                                case 0x23: printf("kPEFRelocTVector8"); break;
+                                case 0x24: printf("kPEFRelocVTable8"); break;
+                                case 0x25: printf("kPEFRelocImportRun"); break;
+                            }
+                        }
+                        break;
+                    case 0x30:
+                        {
+                            uint16_t index = ((block[0] & 0x01) << 8) | block[1];
+                            switch (opcode)
+                            {
+                                case 0x30: printf("RelocSmByImport, index %d", index); importIndex = index + 1; byImportCount++; break;
+                                case 0x31: printf("RelocSmSetSectC"); break;
+                                case 0x32: printf("RelocSmSetSectD"); break;
+                                case 0x33: printf("RelocSmBySection"); break;
+                            }
+                        }
+                        break;
+                    case 0x40:
+                        {
+                            if (opcode & 0x80)
+                            {
+                                printf("kPEFRelocSmRepeat"); break;
+                            }
+                            else
+                            {
+                                printf("RelocIncrPosition"); break;
+                            }
+                        }
+                        break;
+                    case 0x50:
+                        {
+                            opcode &= 0xFE; // clear the last bit
+                            switch (opcode)
+                            {
+                                case 0x50: printf("kPEFRelocSetPosition"); break;
+                                case 0x52: printf("kPEFRelocLgByImport"); break;
+                                case 0x58: printf("kPEFRelocLgRepeat"); break;
+                                case 0x5A: printf("kPEFRelocSetOrBySection"); break;
+                            }
+                        }
+                        break;
+                }
+            }
+            printf("\n");
+        }
+        printf("%d ByImportCount instructions\n", byImportCount);
+    }
+}
 
 void ProcessLoaderSection(struct SectionData* pSectionData, struct LoaderSection* pSection)
 {
@@ -48,7 +140,7 @@ void ProcessLoaderSection(struct SectionData* pSectionData, struct LoaderSection
     pSection->importLibraryCount = OSReadBigInt32(header, 24);
     pSection->importSymbolCount = OSReadBigInt32(header, 28);
     pSection->relocSectionCount = OSReadBigInt32(header, 32);
-    pSection->relocInstCount = OSReadBigInt32(header, 36);
+    pSection->relocInstOffset = OSReadBigInt32(header, 36);
     pSection->loaderStringOffset = OSReadBigInt32(header, 40);
     pSection->exportHashOffset = OSReadBigInt32(header, 44);
     pSection->exportHashTablePower = OSReadBigInt32(header, 48);
@@ -85,6 +177,7 @@ void ProcessLoaderSection(struct SectionData* pSectionData, struct LoaderSection
     uint8_t symbolTableEntry[4];
 
     uint32_t offsetToImportTable = (pSection->importLibraryCount * 24) + 56;
+    uint32_t totalSymbolCount = 0;
     for (uint32_t i = 0; i < pSection->importLibraryCount; i++)
     {
         memcpy(&libraryDescription, loaderData + 56 + (i * 24), 24);
@@ -102,7 +195,7 @@ void ProcessLoaderSection(struct SectionData* pSectionData, struct LoaderSection
             uint8_t symbolClass = symbolTableEntry[0];
             symbolTableEntry[0] = 0x00;
             uint32_t symbolNameOffset = OSReadBigInt32(symbolTableEntry, 0);
-            printf("\t\t\t%s ", loaderData + pSection->loaderStringOffset + symbolNameOffset);
+            printf("\t\t\t%d: %s ", totalSymbolCount, loaderData + pSection->loaderStringOffset + symbolNameOffset);
             switch(symbolClass & 0x0F)
             {
                 case 0x00: printf("(code address)"); break;
@@ -113,9 +206,16 @@ void ProcessLoaderSection(struct SectionData* pSectionData, struct LoaderSection
                 default: printf("! unknown symbol flag");
             }
             printf("\n");
+            totalSymbolCount++;
         }
     }
     printf("\t%u exported symbols\n", pSection->exportSymbolCount);
+    if (pSection->relocSectionCount != 0)
+    {
+        printf("\t%u sections requiring relocation\n", pSection->relocSectionCount);
+        uint32_t relocationHeaderTable = (totalSymbolCount * 4) + (pSection->importLibraryCount * 24) + 56;
+        ProcessRelocationArea(loaderData, pSection->relocSectionCount, relocationHeaderTable, pSection->relocInstOffset);
+    }
 }
 
 void ProcessCodeSection(struct SectionData* pSection, struct LoaderSection* pLoader)
@@ -289,6 +389,10 @@ void ProcessPatternDataSection(struct SectionData* pSection, uint8_t* unpackedDa
         }
     }
 
+    FILE* out = fopen("data.dat", "w");
+    fwrite(unpackedData, pSection->totalLength, 1, out);
+    fclose(out);
+
     printf("\nPattern-initialized data section %d:\n", pSection->id);
     for (uint32_t i = 0; i < pSection->totalLength; i += 16)
     {
@@ -317,6 +421,7 @@ void ReadPEFSection(uint16_t sectionIndex, FILE* input, struct SectionData* pSec
 
     printf("Section %d:\n", sectionIndex + 1);
     printf("\tSection name offset: 0x%08x\n", nameOffset);
+    printf("\tDefault address: 0x%08x\n", defaultAddress);
     printf("\tTotal size: %u\tUnpacked size:%u\tPacked size:%u\n", totalSize, unpackedSize, packedSize);
     printf("\tOffset in container: 0x%08x\n", containerOffset);
     printf("\tType: ");
