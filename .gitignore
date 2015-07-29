@@ -2,6 +2,7 @@
 ResourceForker
 *.rfork
 *.bmp
+*.dat
 resources/
 dump/
 disassembly/
