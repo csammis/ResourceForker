@@ -169,8 +169,18 @@ uint32_t DoOneRelocationInstruction(uint8_t* data, uint32_t instructionOffset, s
                     opcode &= 0xFE; // clear the last bit
                     switch (opcode)
                     {
-                        case 0x50: printf("kPEFRelocSetPosition"); break;
-                        case 0x52: printf("kPEFRelocLgByImport"); break;
+                        case 0x50:
+                            {
+                                uint32_t value = OSReadBigInt32(data, instructionOffset) & 0x03FFFFFF;
+                                state->relocAddr = value;
+                            }
+                            break;
+                        case 0x52:
+                            {
+                                uint32_t value = OSReadBigInt32(data, instructionOffset) & 0x03FFFFFF;
+                                OSWriteBigInt32(pSection->data, state->relocAddr, value);
+                            }
+                            break;
                         case 0x58: printf("kPEFRelocLgRepeat"); break;
                         case 0x5A: printf("kPEFRelocSetOrBySection"); break;
                     }
