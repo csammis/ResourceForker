@@ -31,9 +31,160 @@ struct SectionData
     uint8_t* data;
     uint32_t length;
     uint32_t totalLength;
+    uint32_t baseAddress;
 };
 
-void ProcessRelocationArea(uint8_t* data, uint32_t sectionCount, uint32_t headerOffset, uint32_t areaOffset)
+struct RelocationState
+{
+    uint32_t relocAddr;
+    uint32_t importIndex;
+    uint32_t sectionC;
+    uint32_t sectionD;
+};
+
+#define ADD_TO_ADDRESS(x, y) OSWriteBigInt32(pSection->data, x, OSReadBigInt32(pSection->data, x) + y)
+
+uint32_t DoOneRelocationInstruction(uint8_t* data, uint32_t instructionOffset, struct RelocationState* state, struct SectionData* pSection, struct SectionData** sections)
+{
+    uint8_t block[2];
+    memcpy(block, data + instructionOffset, 2);
+
+    // the 0x05 instructions take 4 bytes instead of 2
+    uint32_t instructionSize = 2;
+
+    printf("\t\t\t");
+    if ((block[0] & 0xC0) == 0)
+    {
+        uint16_t skipCount = ((block[0] & 0x3F) << 2) | ((block[1] & 0xC0) >> 6);
+        uint8_t relocCount = block[1] & 0x3F;
+        state->relocAddr += skipCount * 4;
+        for (uint8_t j = 0; j < relocCount; j++, state->relocAddr += 4)
+        {
+            ADD_TO_ADDRESS(state->relocAddr, state->sectionD);
+        }
+    }
+    else
+    {
+        uint8_t opcode = (block[0] & 0xFE) >> 1;
+        switch (opcode & 0xF0)
+        {
+            case 0x20:
+                {
+                    uint8_t runLength = (opcode & 0x0F) + 1;
+                    switch (opcode)
+                    {
+                        case 0x20:
+                            for (uint8_t j = 0; j < runLength; j++, state->relocAddr += 4)
+                            {
+                                ADD_TO_ADDRESS(state->relocAddr, state->sectionC);
+                            }
+                            break;
+                        case 0x21:
+                            for (uint8_t j = 0; j < runLength; j++, state->relocAddr += 4)
+                            {
+                                ADD_TO_ADDRESS(state->relocAddr, state->sectionD);
+                            }
+                            break;
+                        case 0x22:
+                            for (uint8_t j = 0; j < runLength; j++, state->relocAddr += 12)
+                            {
+                                ADD_TO_ADDRESS(state->relocAddr, state->sectionC);
+                                ADD_TO_ADDRESS(state->relocAddr + 4, state->sectionD);
+                                // No write to offset 8
+                            }
+                            break;
+                        case 0x23:
+                            for (uint8_t j = 0; j < runLength; j++, state->relocAddr += 8)
+                            {
+                                ADD_TO_ADDRESS(state->relocAddr, state->sectionC);
+                                ADD_TO_ADDRESS(state->relocAddr + 4, state->sectionD);
+                            }
+                            break;
+                        case 0x24:
+                            for (uint8_t j = 0; j < runLength; j++, state->relocAddr += 8)
+                            {
+                                ADD_TO_ADDRESS(state->relocAddr, state->sectionD);
+                                // No write to offset 4
+                            }
+                            break;
+                        case 0x25:
+                            for (uint8_t j = 0; j < runLength; j++, state->relocAddr += 4, state->importIndex++)
+                            {
+                                ADD_TO_ADDRESS(state->relocAddr, state->importIndex); //cstodo hm
+                            }
+                            break;
+                    }
+                }
+                break;
+            case 0x30:
+                {
+                    uint16_t index = ((block[0] & 0x01) << 8) | block[1];
+                    switch (opcode)
+                    {
+                        case 0x30:
+                            OSWriteBigInt32(pSection->data, state->relocAddr, index);
+                            state->importIndex = index + 1;
+                            state->relocAddr += 4;
+                            break;
+                        case 0x31:
+                            state->sectionC = sections[index]->baseAddress;
+                            break;
+                        case 0x32:
+                            state->sectionD = sections[index]->baseAddress;
+                            break;
+                        case 0x33:
+                            ADD_TO_ADDRESS(state->relocAddr, sections[index]->baseAddress);
+                            state->relocAddr += 4;
+                            break;
+                    }
+                }
+                break;
+            case 0x40:
+                {
+                    if (opcode & 0x80)
+                    {
+                        uint8_t blockCount = (block[0] & 0x0F) + 1;
+                        uint8_t repeatCount = block[1] + 1;
+                        
+                        uint32_t originalOffset = instructionOffset;
+                        for (uint8_t j = 0, instructionOffset = originalOffset; j < repeatCount; j++)
+                        {
+                            instructionOffset -= blockCount * 2;
+                            while (instructionOffset < originalOffset)
+                            {
+                                instructionOffset = DoOneRelocationInstruction(data, instructionOffset, state, pSection, sections);
+                            }
+                        }
+                        instructionOffset = originalOffset;
+                    }
+                    else
+                    {
+                        uint16_t offset = (((block[0] & 0x0F) << 4) | block[1]) + 1;
+                        state->relocAddr += offset;
+                    }
+                }
+                break;
+            case 0x50:
+                {
+                    opcode &= 0xFE; // clear the last bit
+                    switch (opcode)
+                    {
+                        case 0x50: printf("kPEFRelocSetPosition"); break;
+                        case 0x52: printf("kPEFRelocLgByImport"); break;
+                        case 0x58: printf("kPEFRelocLgRepeat"); break;
+                        case 0x5A: printf("kPEFRelocSetOrBySection"); break;
+                    }
+                }
+                instructionSize = 4;
+                break;
+        }
+    }
+    printf("\n");
+
+    return instructionOffset + instructionSize;
+}
+
+void ProcessRelocationArea(uint8_t* data, uint32_t sectionCount, uint32_t headerOffset, uint32_t areaOffset, struct SectionData** sections)
 {
     for (uint32_t section = 0; section < sectionCount; section++)
     {
@@ -42,92 +193,32 @@ void ProcessRelocationArea(uint8_t* data, uint32_t sectionCount, uint32_t header
         uint32_t relocCount = OSReadBigInt32(data, thisOffset + 4);
         uint32_t firstRelocOffset = OSReadBigInt32(data, thisOffset + 8);
 
-        printf("\t\tGoing to read %d relocation instruction blocks for section %d\n", relocCount, affectedSection);
+        struct SectionData* pSection = sections[affectedSection];
+        printf("\t\tGoing to read %d relocation instruction blocks for section %d with type %d\n", relocCount, affectedSection, pSection->type);
 
-        uint32_t instOffset = areaOffset + firstRelocOffset;
+        uint32_t instructionOffset = areaOffset + firstRelocOffset;
+        uint32_t endOffset = instructionOffset + (relocCount * 2);
 
-        uint32_t relocAddress = 0; // section base address
-        uint32_t importIndex = 0;
-        uint32_t sectionC = 0; // section 0
-        uint32_t sectionD = 0; // section 1
+        struct RelocationState state;
+        state.relocAddr = 0;
+        state.importIndex = 0;
+        state.sectionC = sections[0]->baseAddress;
+        state.sectionD = sections[1]->baseAddress;
         
-        uint32_t byImportCount = 0;
-
-        for (uint32_t i = 0; i < relocCount; i++)
+        while (instructionOffset < endOffset)
         {
-            uint8_t block[2];
-            memcpy(block, data + instOffset + (i * 2), 2);
-
-            printf("\t\t\t");
-            if ((block[0] & 0xC0) == 0)
-            {
-                printf("RelocBySectDWithSkip");
-            }
-            else
-            {
-                uint8_t opcode = (block[0] & 0xFE) >> 1;
-                switch (opcode & 0xF0)
-                {
-                    case 0x20:
-                        {
-                            switch (opcode)
-                            {
-                                case 0x20: printf("RelocBySectC"); break;
-                                case 0x21: printf("kPEFRelocBySectD"); break;
-                                case 0x22: printf("kPEFRelocTVector12"); break;
-                                case 0x23: printf("kPEFRelocTVector8"); break;
-                                case 0x24: printf("kPEFRelocVTable8"); break;
-                                case 0x25: printf("kPEFRelocImportRun"); break;
-                            }
-                        }
-                        break;
-                    case 0x30:
-                        {
-                            uint16_t index = ((block[0] & 0x01) << 8) | block[1];
-                            switch (opcode)
-                            {
-                                case 0x30: printf("RelocSmByImport, index %d", index); importIndex = index + 1; byImportCount++; break;
-                                case 0x31: printf("RelocSmSetSectC"); break;
-                                case 0x32: printf("RelocSmSetSectD"); break;
-                                case 0x33: printf("RelocSmBySection"); break;
-                            }
-                        }
-                        break;
-                    case 0x40:
-                        {
-                            if (opcode & 0x80)
-                            {
-                                printf("kPEFRelocSmRepeat"); break;
-                            }
-                            else
-                            {
-                                printf("RelocIncrPosition"); break;
-                            }
-                        }
-                        break;
-                    case 0x50:
-                        {
-                            opcode &= 0xFE; // clear the last bit
-                            switch (opcode)
-                            {
-                                case 0x50: printf("kPEFRelocSetPosition"); break;
-                                case 0x52: printf("kPEFRelocLgByImport"); break;
-                                case 0x58: printf("kPEFRelocLgRepeat"); break;
-                                case 0x5A: printf("kPEFRelocSetOrBySection"); break;
-                            }
-                        }
-                        break;
-                }
-            }
-            printf("\n");
+            instructionOffset = DoOneRelocationInstruction(data, instructionOffset, &state, pSection, sections);
         }
-        printf("%d ByImportCount instructions\n", byImportCount);
+
+        FILE* out = fopen("relocdump.dat", "w");
+        fwrite(pSection->data, pSection->totalLength, 1, out);
+        fclose(out);
     }
 }
 
-void ProcessLoaderSection(struct SectionData* pSectionData, struct LoaderSection* pSection)
+void ProcessLoaderSection(struct SectionData** sections, uint16_t loaderSectionIndex, struct LoaderSection* pSection)
 {
-    uint8_t* loaderData = pSectionData->data;
+    uint8_t* loaderData = sections[loaderSectionIndex]->data;
     uint8_t header[56];
     memcpy(&header, loaderData, 56);
 
@@ -214,7 +305,7 @@ void ProcessLoaderSection(struct SectionData* pSectionData, struct LoaderSection
     {
         printf("\t%u sections requiring relocation\n", pSection->relocSectionCount);
         uint32_t relocationHeaderTable = (totalSymbolCount * 4) + (pSection->importLibraryCount * 24) + 56;
-        ProcessRelocationArea(loaderData, pSection->relocSectionCount, relocationHeaderTable, pSection->relocInstOffset);
+        ProcessRelocationArea(loaderData, pSection->relocSectionCount, relocationHeaderTable, pSection->relocInstOffset, sections);
     }
 }
 
@@ -447,6 +538,7 @@ void ReadPEFSection(uint16_t sectionIndex, FILE* input, struct SectionData* pSec
     pSection->data = malloc(packedSize);
     pSection->length = packedSize;
     pSection->totalLength = totalSize;
+    pSection->baseAddress = 0;
     fseek(input, containerOffset,SEEK_SET);
     fread(pSection->data, packedSize, 1, input);
 }
@@ -477,8 +569,6 @@ void ProcessPEF(FILE* input)
 
     struct SectionData** sections = malloc(sizeof(struct SectionData*) * sectionCount);
     uint16_t loaderSectionIndex = 0xFFFF;
-
-    uint8_t* dataSection = NULL;
     for (uint16_t i = 0; i < sectionCount; i++)
     {
         sections[i] = malloc(sizeof(struct SectionData));
@@ -500,7 +590,7 @@ void ProcessPEF(FILE* input)
     }
 
     struct LoaderSection loader;
-    ProcessLoaderSection(sections[loaderSectionIndex], &loader);
+    ProcessLoaderSection(sections, loaderSectionIndex, &loader);
 
     // Run back through and process sections which depend on loader information.
     for (uint16_t i = 0; i < sectionCount; i++)
