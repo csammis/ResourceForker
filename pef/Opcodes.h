@@ -154,9 +154,16 @@ void PrintIForm(uint8_t* inst, uint8_t opcode, uint32_t currentAddress, char* in
     int64_t value = S64_EXT_24(target);
 
     if (inst[3] & 0x01) INSTR_BUFFER_APPEND("l");
-    if (inst[3] & 0x02) INSTR_BUFFER_APPEND("a");
-    snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "%lld <%llx_dest>", value, currentAddress + value);
-    *ppLabel = CreateLabel(currentAddress + value);
+    if (inst[3] & 0x02)
+    {
+        INSTR_BUFFER_APPEND("a");
+        currentAddress = 0; // Don't use the offset of the instruction as a base
+    }
+
+    int64_t targetAddress = value + currentAddress;
+
+    snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "%lld <%llx_dest>", value, targetAddress);
+    *ppLabel = CreateLabel(targetAddress);
 }
 
 void PrintBForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
