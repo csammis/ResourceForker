@@ -6,8 +6,8 @@
 
 #define INSTR_BUFFER_APPEND(x) snprintf(instrBuffer + strlen(instrBuffer), INSTRUCTION_NAME_SIZE - strlen(instrBuffer), x)
 
-#define S64_EXT_16(v) v * ((v & 0x8000) ? -1 : 1)
-#define S64_EXT_24(v) v * ((v & 0x800000) ? -1 : 1)
+#define S64_EXT_16(v) (int64_t)(v & 0x8000 ? v | 0xFFFFFFFFFFFF0000 : v);
+#define S64_EXT_24(v) (int64_t)(v & 0x2000000 ? v | 0xFFFFFFFFFC000000 : v)
 
 #define CASE_PRINT(x, y) case x: snprintf(instrBuffer, INSTRUCTION_NAME_SIZE, "%s", #y);
 
@@ -150,8 +150,8 @@ void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode, char* instrBu
 void PrintIForm(uint8_t* inst, uint8_t opcode, uint32_t currentAddress, char* instrBuffer, char* paramBuffer, struct CodeLabel** ppLabel)
 {
     uint32_t target = OSReadBigInt32(inst, 0);
-    target = (target & 0x03FFFFFC) >> 2;
-    int64_t value = S64_EXT_24((target << 2));
+    target = ((target & 0x03FFFFFC) >> 2) << 2;
+    int64_t value = S64_EXT_24(target);
 
     if (inst[3] & 0x01) INSTR_BUFFER_APPEND("l");
     if (inst[3] & 0x02) INSTR_BUFFER_APPEND("a");
@@ -163,8 +163,8 @@ void PrintBForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuf
 {
     uint8_t bo = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t bi = (inst[1] & 0x1F);
-    uint16_t target = (OSReadBigInt16(inst, 2) & 0xFFFC) >> 2;
-    int64_t value = S64_EXT_16((target << 2));
+    uint16_t target = ((OSReadBigInt16(inst, 2) & 0xFFFC) >> 2) << 2;
+    int64_t value = S64_EXT_16(target);
 
     if (inst[3] & 0x01) INSTR_BUFFER_APPEND("l");
     if (inst[3] & 0x02) INSTR_BUFFER_APPEND("a");
