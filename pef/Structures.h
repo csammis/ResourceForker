@@ -3,6 +3,7 @@
 
 struct LoaderSection
 {
+    uint8_t* data;
     uint32_t mainSection;
     uint32_t mainOffset;
     uint32_t initSection;
@@ -17,6 +18,8 @@ struct LoaderSection
     uint32_t exportHashOffset;
     uint32_t exportHashTablePower;
     uint32_t exportSymbolCount;
+
+    uint32_t importSymbolTableOffset;
 };
 
 struct SectionData

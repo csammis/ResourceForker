@@ -7,6 +7,7 @@
 #include "PatternData.h"
 #include "Code.h"
 #include "Relocations.h"
+#include "Loader.h"
 
 void ReadPEFSection(uint16_t sectionIndex, FILE* input, struct SectionData* pSection)
 {
@@ -88,6 +89,7 @@ void ProcessPEF(FILE* input)
 
     struct SectionData** sections = malloc(sizeof(struct SectionData*) * sectionCount);
     uint16_t loaderSectionIndex = 0xFFFF;
+    uint16_t dataSectionIndex = 0xFFFF;
     for (uint16_t i = 0; i < sectionCount; i++)
     {
         sections[i] = malloc(sizeof(struct SectionData));
@@ -99,6 +101,7 @@ void ProcessPEF(FILE* input)
         else if (sections[i]->type == 2)
         {
             InflatePatternDataSection(sections[i]);
+            dataSectionIndex = i;
         }
     }
 
@@ -117,7 +120,7 @@ void ProcessPEF(FILE* input)
         switch (sections[i]->type)
         {
             case 0:
-                ProcessCodeSection(sections[i], &loader);
+                ProcessCodeSection(sections[i], sections[dataSectionIndex], &loader);
                 break;
         }
     }

@@ -5,9 +5,9 @@
 
 void ProcessLoaderSection(struct SectionData** sections, uint16_t loaderSectionIndex, struct LoaderSection* pSection)
 {
-    uint8_t* loaderData = sections[loaderSectionIndex]->data;
+    pSection->data = sections[loaderSectionIndex]->data;
     uint8_t header[56];
-    memcpy(&header, loaderData, 56);
+    memcpy(&header, pSection->data, 56);
 
     pSection->mainSection           = OSReadBigInt32(header, 0);
     pSection->mainOffset            = OSReadBigInt32(header, 4);
@@ -54,11 +54,11 @@ void ProcessLoaderSection(struct SectionData** sections, uint16_t loaderSectionI
     uint8_t libraryDescription[24];
     uint8_t symbolTableEntry[4];
 
-    uint32_t offsetToImportTable = (pSection->importLibraryCount * 24) + 56;
+    pSection->importSymbolTableOffset = (pSection->importLibraryCount * 24) + 56;
     uint32_t totalSymbolCount = 0;
     for (uint32_t i = 0; i < pSection->importLibraryCount; i++)
     {
-        memcpy(&libraryDescription, loaderData + 56 + (i * 24), 24);
+        memcpy(&libraryDescription, pSection->data + 56 + (i * 24), 24);
         uint32_t nameOffset = OSReadBigInt32(libraryDescription, 0);
         uint32_t oldImpVersion = OSReadBigInt32(libraryDescription, 4);
         uint32_t currentVersion = OSReadBigInt32(libraryDescription, 8);
@@ -66,14 +66,14 @@ void ProcessLoaderSection(struct SectionData** sections, uint16_t loaderSectionI
         uint32_t firstSymbol = OSReadBigInt32(libraryDescription, 16);
         uint8_t options = libraryDescription[20];
 
-        printf("\t\t'%s' imports %u symbols\n", loaderData + pSection->loaderStringOffset + nameOffset, symbolCount);
+        printf("\t\t'%s' imports %u symbols\n", pSection->data + pSection->loaderStringOffset + nameOffset, symbolCount);
         for (uint32_t j = 0; j < symbolCount; j++)
         {
-            memcpy(&symbolTableEntry, loaderData + offsetToImportTable + ((j + firstSymbol) * 4), 4);
+            memcpy(&symbolTableEntry, pSection->data + pSection->importSymbolTableOffset + ((j + firstSymbol) * 4), 4);
             uint8_t symbolClass = symbolTableEntry[0];
             symbolTableEntry[0] = 0x00;
             uint32_t symbolNameOffset = OSReadBigInt32(symbolTableEntry, 0);
-            printf("\t\t\t%d: %s ", totalSymbolCount, loaderData + pSection->loaderStringOffset + symbolNameOffset);
+            printf("\t\t\t%d: %s ", totalSymbolCount, pSection->data + pSection->loaderStringOffset + symbolNameOffset);
             switch(symbolClass & 0x0F)
             {
                 case 0x00: printf("(code address)"); break;
@@ -92,7 +92,7 @@ void ProcessLoaderSection(struct SectionData** sections, uint16_t loaderSectionI
     {
         printf("\t%u sections requiring relocation\n", pSection->relocSectionCount);
         uint32_t relocationHeaderTable = (totalSymbolCount * 4) + (pSection->importLibraryCount * 24) + 56;
-        ProcessRelocationArea(loaderData, pSection->relocSectionCount, relocationHeaderTable, pSection->relocInstOffset, sections);
+        ProcessRelocationArea(pSection->data, pSection->relocSectionCount, relocationHeaderTable, pSection->relocInstOffset, sections);
     }
 }
 
