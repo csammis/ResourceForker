@@ -12,7 +12,7 @@
 #define CASE_PRINT(x, y) case x: snprintf(instrBuffer, INSTRUCTION_NAME_SIZE, "%s", #y);
 
 #define A_FORM PrintAForm(inst, opcode, instrBuffer, paramBuffer)
-#define B_FORM PrintBForm(inst, opcode, instrBuffer, paramBuffer)
+#define B_FORM PrintBForm(inst, opcode, currentAddress, instrBuffer, paramBuffer, ppLabel)
 #define D_FORM PrintDForm(inst, opcode, instrBuffer, paramBuffer)
 #define DS_FORM PrintDSForm(inst, opcode, instrBuffer, paramBuffer)
 #define I_FORM PrintIForm(inst, opcode, currentAddress, instrBuffer, paramBuffer, ppLabel)
@@ -166,7 +166,7 @@ void PrintIForm(uint8_t* inst, uint8_t opcode, uint32_t currentAddress, char* in
     *ppLabel = CreateLabel(targetAddress);
 }
 
-void PrintBForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
+void PrintBForm(uint8_t* inst, uint8_t opcode, uint32_t currentAddress, char* instrBuffer, char* paramBuffer, struct CodeLabel** ppLabel)
 {
     uint8_t bo = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t bi = (inst[1] & 0x1F);
@@ -174,8 +174,15 @@ void PrintBForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuf
     int64_t value = S64_EXT_16(target);
 
     if (inst[3] & 0x01) INSTR_BUFFER_APPEND("l");
-    if (inst[3] & 0x02) INSTR_BUFFER_APPEND("a");
-    snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "%d, %d, %lld", bo, bi, value);
+    if (inst[3] & 0x02)
+    {
+        INSTR_BUFFER_APPEND("a");
+        currentAddress = 0;
+    }
+
+    int64_t targetAddress = value + currentAddress;
+    snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "%d, %d, %lld <%llx_dest>", bo, bi, value, targetAddress);
+    *ppLabel = CreateLabel(targetAddress);
 }
 
 void PrintAForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
