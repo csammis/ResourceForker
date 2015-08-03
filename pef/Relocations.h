@@ -21,7 +21,6 @@ uint32_t DoOneRelocationInstruction(uint8_t* data, uint32_t instructionOffset, s
     // the 0x05 instructions take 4 bytes instead of 2
     uint32_t instructionSize = 2;
 
-    printf("\t\t\t");
     if ((block[0] & 0xC0) == 0)
     {
         uint16_t skipCount = ((block[0] & 0x3F) << 2) | ((block[1] & 0xC0) >> 6);
@@ -150,15 +149,14 @@ uint32_t DoOneRelocationInstruction(uint8_t* data, uint32_t instructionOffset, s
                                 OSWriteBigInt32(pSection->data, state->relocAddr, value);
                             }
                             break;
-                        case 0x58: printf("kPEFRelocLgRepeat"); break;
-                        case 0x5A: printf("kPEFRelocSetOrBySection"); break;
+                        case 0x58: printf("DEBUG: unproccessed relocation instruction kPEFRelocLgRepeat\n"); break;
+                        case 0x5A: printf("DEBUG: unproccessed relocation instruction kPEFRelocSetOrBySection\n"); break;
                     }
                 }
                 instructionSize = 4;
                 break;
         }
     }
-    printf("\n");
 
     return instructionOffset + instructionSize;
 }
