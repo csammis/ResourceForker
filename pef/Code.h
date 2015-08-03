@@ -78,42 +78,63 @@ void GuessThePattern(struct CodeInstruction** instructions, uint32_t i, uint32_t
     }
 }
 
+uint32_t CountBranchInstructions(uint8_t* instructions, uint32_t length)
+{
+    uint32_t retval = 0;
+    for (uint32_t i = 0; i < length; i += 4)
+    {
+        uint8_t opcode = READ_OPCODE((instructions + i));
+        if (opcode == 16 || opcode == 18)
+        {
+            retval++;
+        }
+    }
+    return retval;
+}
+
 void ProcessCodeSection(struct SectionData* pCodeSection, struct SectionData* pDataSection, struct LoaderSection* pLoader)
 {
-    uint8_t inst[4];
-    struct CodeLabel* labelHead = NULL;
-    struct CodeLabel* labelTail = NULL;
-    
     uint32_t instructionCount = pCodeSection->length / 4;
     struct CodeInstruction** instructions = malloc(sizeof(struct CodeInstruction) * instructionCount);
-    
+
+    uint32_t labelCount = CountBranchInstructions(pCodeSection->data, pCodeSection->length);
     if (pCodeSection->id == pLoader->mainSection)
     {
-        CreateLabelAtTail(pLoader->mainOffset, &labelHead, &labelTail);
-        memset(labelHead->name, 0, LABEL_NAME_SIZE);
-        snprintf(labelHead->name, 7, "<main>");
+        labelCount++;
+    }
+    struct CodeLabel** labels = malloc(sizeof(struct CodeLabel) * labelCount);
+    uint32_t currentLabel = 0;
+    if (pCodeSection->id == pLoader->mainSection)
+    {
+        labels[currentLabel] = CreateLabel(pLoader->mainOffset);
+        memset(labels[currentLabel]->name, 0, LABEL_NAME_SIZE);
+        snprintf(labels[currentLabel]->name, 7, "<main>");
+        currentLabel++;
     }
 
+    bool isBranchInstruction = false;
     for (uint32_t i = 0, j = 0; i < pCodeSection->length; i += 4, j++)
     {
         instructions[j] = CreateInstruction(i, pCodeSection->data + i);
-        PrintOpcode(instructions[j], &labelHead, &labelTail);
+        PrintOpcode(instructions[j], &labels[currentLabel], &isBranchInstruction);
+        if (isBranchInstruction)
+        {
+            currentLabel++;
+        }
     }
 
     printf("\nCode section %d disassembly:\n", pCodeSection->id);
     for (uint32_t i = 0, addr = 0; i < instructionCount; i++, addr += 4)
     {
         struct CodeInstruction* instr = instructions[i];
-        
-        struct CodeLabel* label = labelHead;
-        while (label)
+
+        for (uint32_t j = 0; j < labelCount; j++)
         {
-            if (label->address == addr)
+            if (labels[j]->address == addr)
             {
-                printf("\n%016x %s:\n", label->address, label->name);
+                printf("\n%016x %s:\n", labels[j]->address, labels[j]->name);
                 break;
             }
-            label = label->nextLabel;
         }
 
         GuessThePattern(instructions, i, instructionCount, pDataSection, pLoader);
@@ -123,7 +144,11 @@ void ProcessCodeSection(struct SectionData* pCodeSection, struct SectionData* pD
         free(instr);
     }
 
-    FreeLabels(labelHead);
+    for (uint32_t i = 0; i < labelCount; i++)
+    {
+        free(labels[i]);
+    }
+    free(labels);
     free(instructions);
 }
 
