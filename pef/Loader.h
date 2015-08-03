@@ -2,6 +2,7 @@
 #define __PEF_LOADER_H__
 
 #include "Structures.h"
+#include "Relocations.h"
 
 void ProcessLoaderSection(struct SectionData** sections, uint16_t loaderSectionIndex, struct LoaderSection* pSection)
 {

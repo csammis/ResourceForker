@@ -4,6 +4,7 @@
 #include "Structures.h"
 #include "Instructions.h"
 #include "Opcodes.h"
+#include "Loader.h"
 
 uint8_t RESTORE_R2_AFTER_GLUE[4] = { 0x80, 0x41, 0x00, 0x14 }; // lwz r2, 20(r1)
 
@@ -15,6 +16,13 @@ uint8_t GLUE_PATTERN[5][4] = {
     { 0x4e, 0x80, 0x04, 0x20 }  // bcctr 20, 0, 0
 };
 
+char* FindSymbolNameFromGlue(struct SectionData* dataSection, int64_t offset, struct LoaderSection* loaderSection)
+{
+    uint32_t symbol = OSReadBigInt32(dataSection->data, offset);
+    uint32_t symbolTableEntry = OSReadBigInt32(loaderSection->data, loaderSection->importSymbolTableOffset + (symbol * 4));
+    return (char*)(loaderSection->data + loaderSection->loaderStringOffset + (symbolTableEntry & 0x00FFFFFF));
+}
+
 bool IsPatternJumpToGlue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount)
 {
     if (i + 1 >= instructionCount)
@@ -23,8 +31,8 @@ bool IsPatternJumpToGlue(struct CodeInstruction** instructions, uint32_t i, uint
     }
 
     uint8_t* raw = instructions[i]->raw;
-    return READ_OPCODE(raw) == 18 && ((raw[3] & 0x01) == 0x01) && // bl <dest>
-        memcmp(instructions[i + 1]->raw, RESTORE_R2_AFTER_GLUE, 4) == 0;
+    return READ_OPCODE(raw) == 18 && ((raw[3] & 0x01) == 0x01) &&        // bl <dest>
+        memcmp(instructions[i + 1]->raw, RESTORE_R2_AFTER_GLUE, 4) == 0; // lwz r2, 20(r1)
 }
 
 bool IsPatternGlue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount)
@@ -56,20 +64,17 @@ void GuessThePattern(struct CodeInstruction** instructions, uint32_t i, uint32_t
         uint32_t glueIndex = value / 4;
         if (IsPatternGlue(instructions, glueIndex, instructionCount))
         {
-            uint16_t gluevalue = OSReadBigInt16(instructions[glueIndex]->raw, 2);
-            value = S64_EXT_16(gluevalue);
-            uint32_t symbol = OSReadBigInt32(pDataSection->data, value);
-            uint32_t symbolTableEntry = OSReadBigInt32(pLoader->data, pLoader->importSymbolTableOffset + (symbol * 4));
-            char* symbolName = (char*)(pLoader->data + pLoader->loaderStringOffset + (symbolTableEntry & 0x00FFFFFF));
-            snprintf(instructions[i]->params + strlen(instructions[i]->params), 26 + strlen(symbolName), " Glue to symbol index %d %s", symbol, symbolName);
+            int64_t signextvalue = GetSignExtValueFromDForm(instructions[glueIndex]->raw);
+            char* symbolName = FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader);
+            snprintf(instructions[i]->params + strlen(instructions[i]->params), 26 + strlen(symbolName), " Glue to symbol %s", symbolName);
         }
     }
     else if (IsPatternGlue(instructions, i, instructionCount))
     {
-        uint16_t value = OSReadBigInt16(instructions[i]->raw, 2);
-        int64_t signextvalue = S64_EXT_16(value);
+        int64_t signextvalue = GetSignExtValueFromDForm(instructions[i]->raw);
         uint32_t dataword = OSReadBigInt32(pDataSection->data, signextvalue);
-        printf("Looks like glue pointing to offset %lld in data area, containing %d\n", signextvalue, dataword);
+        printf("Looks like glue pointing to offset %lld in data area, containing %d (%s)\n",
+                signextvalue, dataword, FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader));
     }
 }
 

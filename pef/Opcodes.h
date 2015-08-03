@@ -447,32 +447,41 @@ void PrintDSForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBu
     snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "r%d, %lld(r%d)", rst, signextvalue, ra);
 }
 
+uint16_t GetValueFromDForm(uint8_t* inst)
+{
+    return OSReadBigInt16(inst, 2);
+}
+
+int64_t GetSignExtValueFromDForm(uint8_t* inst)
+{
+    uint16_t value = GetValueFromDForm(inst);
+    return S64_EXT_16(value);
+}
+
 void PrintDForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
 {
     uint8_t rst = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t ra = (inst[1] & 0x1F);
-    uint16_t value = OSReadBigInt16(inst, 2);
-    int64_t signextvalue = S64_EXT_16(value);
 
     if (opcode == 2 || opcode == 3) // Fixed point trap instructions
     {
-        snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "0x%02x, r%d, %lld", rst, ra, signextvalue);
+        snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "0x%02x, r%d, %lld", rst, ra, GetSignExtValueFromDForm(inst));
     }
     else if (opcode == 10) // cmpli
     {
-        snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "r%d, %u", ra, value);
+        snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "r%d, %u", ra, GetValueFromDForm(inst));
     }
     else if (opcode == 11) // cmpi
     {
-        snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "r%d, %lld", ra, signextvalue);
+        snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "r%d, %lld", ra, GetSignExtValueFromDForm(inst));
     }
     else if (opcode >= 48 && opcode <= 55) // FPR instructions
     {
-        snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "fpr%d, %lld(r%d)", rst, signextvalue, ra);
+        snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "fpr%d, %lld(r%d)", rst, GetSignExtValueFromDForm(inst), ra);
     }
     else
     {
-        snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "r%d, %lld(r%d)", rst, signextvalue, ra);
+        snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "r%d, %lld(r%d)", rst, GetSignExtValueFromDForm(inst), ra);
     }
 }
 
