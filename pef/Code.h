@@ -7,6 +7,9 @@
 #include "Loader.h"
 
 uint8_t RESTORE_R2_AFTER_GLUE[4] = { 0x80, 0x41, 0x00, 0x14 }; // lwz r2, 20(r1)
+uint8_t BEGIN_PROLOGUE[4]        = { 0x7c, 0x08, 0x02, 0xa6 }; // mfspr LR, r0
+uint8_t BEGIN_EPILOGUE[4]        = { 0x7c, 0x08, 0x03, 0xa6 }; // mtspr LR, r0
+uint8_t END_EPILOGUE[4]          = { 0x4e, 0x80, 0x00, 0x20 }; // bclr 20, 0, 0
 
 uint8_t GLUE_PATTERN[5][4] = {
     { 0x90, 0x41, 0x00, 0x14 }, // stw r2, 20(r1)
@@ -21,6 +24,64 @@ char* FindSymbolNameFromGlue(struct SectionData* dataSection, int64_t offset, st
     uint32_t symbol = OSReadBigInt32(dataSection->data, offset);
     uint32_t symbolTableEntry = OSReadBigInt32(loaderSection->data, loaderSection->importSymbolTableOffset + (symbol * 4));
     return (char*)(loaderSection->data + loaderSection->loaderStringOffset + (symbolTableEntry & 0x00FFFFFF));
+}
+
+bool IsPatternEpilogue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount)
+{
+    if (memcmp(instructions[i]->raw, BEGIN_EPILOGUE, 4) != 0)
+    {
+        return false;
+    }
+
+    while (++i < instructionCount)
+    {
+        uint8_t* raw = instructions[i]->raw;
+        uint8_t opcode = READ_OPCODE(raw);
+
+        if (opcode == 46 || opcode == 32)
+        {
+            // lmw or lwz x, x(r1)
+            if ((raw[1] & 0x1F) != 1) break;
+        }
+        else if (memcmp(raw, END_EPILOGUE, 4) == 0)
+        {
+            return true;
+        }
+        else break;
+    }
+    return false;
+}
+
+bool IsPatternPrologue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount)
+{
+    if (memcmp(instructions[i]->raw, BEGIN_PROLOGUE, 4) != 0)
+    {
+        return false;
+    }
+
+    while (++i < instructionCount)
+    {
+        uint8_t* raw = instructions[i]->raw;
+        uint8_t opcode = READ_OPCODE(raw);
+        if (opcode == 47 || opcode == 36)
+        {
+            // stmw or stw x, x(r1)
+            if ((raw[1] & 0x1F) != 1) break;
+        }
+        else if (opcode == 37)
+        {
+            // stwu r1, x(r1) signals the end of a prologue
+            uint8_t rs = ((raw[0] & 0x03) << 3) | ((raw[1] & 0xE0) >> 5);
+            uint8_t ra = (raw[1] & 0x1F);
+            if (rs == 1 && ra == 1)
+            {
+                return true;
+            }
+            else break;
+        }
+        else break;
+    }
+    return false;
 }
 
 bool IsPatternJumpToGlue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount)
@@ -75,6 +136,14 @@ void GuessThePattern(struct CodeInstruction** instructions, uint32_t i, uint32_t
         uint32_t dataword = OSReadBigInt32(pDataSection->data, signextvalue);
         printf("Looks like glue pointing to offset %lld in data area, containing %d (%s)\n",
                 signextvalue, dataword, FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader));
+    }
+    else if (IsPatternPrologue(instructions, i, instructionCount))
+    {
+        printf("Function prologue!\n");
+    }
+    else if (IsPatternEpilogue(instructions, i, instructionCount))
+    {
+        printf("Function epilogue!\n");
     }
 }
 
