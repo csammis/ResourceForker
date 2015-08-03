@@ -23,7 +23,7 @@ bool IsPatternJumpToGlue(struct CodeInstruction** instructions, uint32_t i, uint
     }
 
     uint8_t* raw = instructions[i]->raw;
-    return raw[0] == 0x48 && raw[1] == 0x00 && ((raw[3] & 0x01) == 0x01) && // bl <dest>
+    return READ_OPCODE(raw) == 18 && ((raw[3] & 0x01) == 0x01) && // bl <dest>
         memcmp(instructions[i + 1]->raw, RESTORE_R2_AFTER_GLUE, 4) == 0;
 }
 

@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include "Instructions.h"
 
+#define READ_OPCODE(x) ((x[0] & 0xFC) >> 2)
+
 #define INSTR_BUFFER_APPEND(x) snprintf(instrBuffer + strlen(instrBuffer), INSTRUCTION_NAME_SIZE - strlen(instrBuffer), x)
 
 #define S64_EXT_16(v) (int64_t)(v & 0x8000 ? v | 0xFFFFFFFFFFFF0000 : v);
@@ -546,7 +548,7 @@ bool PrintOpcode(struct CodeInstruction* pInstruction, struct CodeLabel** ppLabe
     uint32_t currentAddress = pInstruction->address;
     uint8_t* inst = pInstruction->raw;
 
-    uint8_t opcode = (inst[0] & 0xFC) >> 2;
+    uint8_t opcode = READ_OPCODE(inst);
     uint16_t extOpcode = ((inst[2] & 0x07) << 7) | (inst[3] >> 1);
 
     char* instrBuffer = pInstruction->opcode;
