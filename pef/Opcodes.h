@@ -14,10 +14,10 @@
 #define CASE_PRINT(x, y) case x: snprintf(instrBuffer, INSTRUCTION_NAME_SIZE, "%s", #y);
 
 #define A_FORM PrintAForm(inst, opcode, instrBuffer, paramBuffer)
-#define B_FORM PrintBForm(inst, opcode, currentAddress, instrBuffer, paramBuffer, ppLabel)
+#define B_FORM PrintBForm(inst, opcode, currentAddress, instrBuffer, paramBuffer, pHead, pTail)
 #define D_FORM PrintDForm(inst, opcode, instrBuffer, paramBuffer)
 #define DS_FORM PrintDSForm(inst, opcode, instrBuffer, paramBuffer)
-#define I_FORM PrintIForm(inst, opcode, currentAddress, instrBuffer, paramBuffer, ppLabel)
+#define I_FORM PrintIForm(inst, opcode, currentAddress, instrBuffer, paramBuffer, pHead, pTail)
 #define M_FORM PrintMForm(inst, opcode, instrBuffer, paramBuffer)
 #define MD_FORM PrintMDForm(inst, opcode, instrBuffer, paramBuffer)
 #define X_FORM PrintXForm(inst, opcode, extOpcode, instrBuffer, paramBuffer)
@@ -149,7 +149,8 @@ void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode, char* instrBu
     }
 }
 
-void PrintIForm(uint8_t* inst, uint8_t opcode, uint32_t currentAddress, char* instrBuffer, char* paramBuffer, struct CodeLabel** ppLabel)
+void PrintIForm(uint8_t* inst, uint8_t opcode, uint32_t currentAddress, char* instrBuffer, char* paramBuffer,
+         struct CodeLabel** pHead, struct CodeLabel** pTail)
 {
     uint32_t target = OSReadBigInt32(inst, 0);
     target = ((target & 0x03FFFFFC) >> 2) << 2;
@@ -165,10 +166,11 @@ void PrintIForm(uint8_t* inst, uint8_t opcode, uint32_t currentAddress, char* in
     int64_t targetAddress = value + currentAddress;
 
     snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "%lld <%llx_dest>", value, targetAddress);
-    *ppLabel = CreateLabel(targetAddress);
+    CreateLabelAtTail(targetAddress, pHead, pTail);
 }
 
-void PrintBForm(uint8_t* inst, uint8_t opcode, uint32_t currentAddress, char* instrBuffer, char* paramBuffer, struct CodeLabel** ppLabel)
+void PrintBForm(uint8_t* inst, uint8_t opcode, uint32_t currentAddress, char* instrBuffer, char* paramBuffer,
+         struct CodeLabel** pHead, struct CodeLabel** pTail)
 {
     uint8_t bo = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t bi = (inst[1] & 0x1F);
@@ -184,7 +186,7 @@ void PrintBForm(uint8_t* inst, uint8_t opcode, uint32_t currentAddress, char* in
 
     int64_t targetAddress = value + currentAddress;
     snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "%d, %d, %lld <%llx_dest>", bo, bi, value, targetAddress);
-    *ppLabel = CreateLabel(targetAddress);
+    CreateLabelAtTail(targetAddress, pHead, pTail);
 }
 
 void PrintAForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
@@ -552,7 +554,7 @@ void HandleOpcode63(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* para
     }
 }
 
-bool PrintOpcode(struct CodeInstruction* pInstruction, struct CodeLabel** ppLabel)
+bool PrintOpcode(struct CodeInstruction* pInstruction, struct CodeLabel** pHead, struct CodeLabel** pTail)
 {
     uint32_t currentAddress = pInstruction->address;
     uint8_t* inst = pInstruction->raw;
@@ -562,8 +564,6 @@ bool PrintOpcode(struct CodeInstruction* pInstruction, struct CodeLabel** ppLabe
 
     char* instrBuffer = pInstruction->opcode;
     char* paramBuffer = pInstruction->params;
-
-    *ppLabel = NULL;
 
     switch (opcode)
     {
