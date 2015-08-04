@@ -8,7 +8,9 @@
 
 uint8_t RESTORE_R2_AFTER_GLUE[4] = { 0x80, 0x41, 0x00, 0x14 }; // lwz r2, 20(r1)
 uint8_t BEGIN_PROLOGUE[4]        = { 0x7c, 0x08, 0x02, 0xa6 }; // mfspr LR, r0
-uint8_t BEGIN_EPILOGUE[4]        = { 0x7c, 0x08, 0x03, 0xa6 }; // mtspr LR, r0
+uint8_t BEGIN_EPILOGUE_1[2]      = { 0x80, 0x01 };             // lwz r0, x(r1)
+uint8_t BEGIN_EPILOGUE_2[2]      = { 0x38, 0x21 };             // addi r1, x(r1)
+uint8_t BEGIN_EPILOGUE_3[4]      = { 0x7c, 0x08, 0x03, 0xa6 }; // mtspr LR, r0
 uint8_t END_EPILOGUE[4]          = { 0x4e, 0x80, 0x00, 0x20 }; // bclr 20, 0, 0
 
 uint8_t GLUE_PATTERN[5][4] = {
@@ -28,7 +30,17 @@ char* FindSymbolNameFromGlue(struct SectionData* dataSection, int64_t offset, st
 
 bool IsPatternEpilogue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount)
 {
-    if (memcmp(instructions[i]->raw, BEGIN_EPILOGUE, 4) != 0)
+    if (memcmp(instructions[i]->raw, BEGIN_EPILOGUE_1, 2) != 0)
+    {
+        return false;
+    }
+
+    if (memcmp(instructions[++i]->raw, BEGIN_EPILOGUE_2, 2) != 0)
+    {
+        return false;
+    }
+
+    if (memcmp(instructions[++i]->raw, BEGIN_EPILOGUE_3, 4) != 0)
     {
         return false;
     }
