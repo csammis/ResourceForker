@@ -21,6 +21,14 @@ uint8_t GLUE_PATTERN[5][4] = {
     { 0x4e, 0x80, 0x04, 0x20 }  // bcctr 20, 0, 0
 };
 
+typedef struct _PatternState
+{
+    bool inPrologue;
+    uint32_t prologueEnd;
+    bool inEpilogue;
+    uint32_t epilogueEnd;
+} PatternState;
+
 char* FindSymbolNameFromGlue(struct SectionData* dataSection, int64_t offset, struct LoaderSection* loaderSection)
 {
     uint32_t symbol = OSReadBigInt32(dataSection->data, offset);
@@ -28,8 +36,9 @@ char* FindSymbolNameFromGlue(struct SectionData* dataSection, int64_t offset, st
     return (char*)(loaderSection->data + loaderSection->loaderStringOffset + (symbolTableEntry & 0x00FFFFFF));
 }
 
-bool IsPatternEpilogue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount)
+bool IsPatternEpilogue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount, PatternState* pState)
 {
+    pState->inEpilogue = false;
     if (memcmp(instructions[i]->raw, BEGIN_EPILOGUE_1, 2) != 0)
     {
         return false;
@@ -57,15 +66,18 @@ bool IsPatternEpilogue(struct CodeInstruction** instructions, uint32_t i, uint32
         }
         else if (memcmp(raw, END_EPILOGUE, 4) == 0)
         {
-            return true;
+            pState->inEpilogue = true;
+            pState->epilogueEnd = i;
+            break;
         }
         else break;
     }
-    return false;
+    return pState->inEpilogue;
 }
 
-bool IsPatternPrologue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount)
+bool IsPatternPrologue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount, PatternState* pState)
 {
+    pState->inPrologue = false;
     if (memcmp(instructions[i]->raw, BEGIN_PROLOGUE, 4) != 0)
     {
         return false;
@@ -87,13 +99,16 @@ bool IsPatternPrologue(struct CodeInstruction** instructions, uint32_t i, uint32
             uint8_t ra = (raw[1] & 0x1F);
             if (rs == 1 && ra == 1)
             {
-                return true;
+                pState->inPrologue = true;
+                pState->prologueEnd = i;
+                break;
             }
             else break;
         }
         else break;
     }
-    return false;
+
+    return pState->inPrologue;
 }
 
 bool IsPatternJumpToGlue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount)
@@ -126,9 +141,32 @@ bool IsPatternGlue(struct CodeInstruction** instructions, uint32_t i, uint32_t i
     return true;
 }
 
-void GuessThePattern(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount, struct SectionData* pDataSection, struct LoaderSection* pLoader)
+void AnnotateInstruction(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount, struct SectionData* pDataSection, struct LoaderSection* pLoader, PatternState* pState)
 {
-    if (IsPatternJumpToGlue(instructions, i, instructionCount))
+    // Check state to see what we're doing now
+    if (pState->inPrologue)
+    {
+        if (i != pState->prologueEnd)
+        {
+            printf("|");
+        }
+        else
+        {
+            printf("\\");
+            pState->inPrologue = false;
+        }
+    }
+    else if (pState->inEpilogue)
+    {
+        if (i != pState->epilogueEnd)
+            printf("|");
+        else
+        {
+            printf("\\");
+            pState->inEpilogue = false;
+        }
+    }
+    else if (IsPatternJumpToGlue(instructions, i, instructionCount))
     {
         uint32_t target = OSReadBigInt32(instructions[i]->raw, 0);
         target = (target & 0x03FFFFFC) >> 2;
@@ -149,13 +187,14 @@ void GuessThePattern(struct CodeInstruction** instructions, uint32_t i, uint32_t
         printf("Looks like glue pointing to offset %lld in data area, containing %d (%s)\n",
                 signextvalue, dataword, FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader));
     }
-    else if (IsPatternPrologue(instructions, i, instructionCount))
+    else if (IsPatternPrologue(instructions, i, instructionCount, pState))
     {
-        printf("Function prologue!\n");
+        printf("Function Start\n");
+        printf("/");
     }
-    else if (IsPatternEpilogue(instructions, i, instructionCount))
+    else if (IsPatternEpilogue(instructions, i, instructionCount, pState))
     {
-        printf("Function epilogue!\n");
+        printf("/");
     }
 }
 
@@ -205,6 +244,7 @@ void ProcessCodeSection(struct SectionData* pCodeSection, struct SectionData* pD
     }
 
     printf("\nCode section %d disassembly:\n", pCodeSection->id);
+    PatternState state;
     for (uint32_t i = 0, addr = 0; i < instructionCount; i++, addr += 4)
     {
         struct CodeInstruction* instr = instructions[i];
@@ -218,7 +258,7 @@ void ProcessCodeSection(struct SectionData* pCodeSection, struct SectionData* pD
             }
         }
 
-        GuessThePattern(instructions, i, instructionCount, pDataSection, pLoader);
+        AnnotateInstruction(instructions, i, instructionCount, pDataSection, pLoader, &state);
 
         printf("%8x:\t%02x %02x %02x %02x\t\t", instr->address, instr->raw[0], instr->raw[1], instr->raw[2], instr->raw[3]);
         printf("%-7s\t%s\n", instr->opcode, instr->params);
