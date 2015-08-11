@@ -223,6 +223,12 @@ void AnnotateInstruction(struct CodeInstruction** instructions, uint32_t i, uint
     }
     else if (IsPatternEpilogue(instructions, i, instructionCount, pState))
     {
+        if (PrintLabelAtAddress(labels, labelCount, i * 4))
+        {
+            printf("\n");
+            if (pState->inSubroutine)
+                printf("|");
+        }
         printf("/");
     }
     else
