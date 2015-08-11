@@ -27,6 +27,7 @@ typedef struct _PatternState
     uint32_t prologueEnd;
     bool inEpilogue;
     uint32_t epilogueEnd;
+    bool inSubroutine;
 } PatternState;
 
 char* FindSymbolNameFromGlue(struct SectionData* dataSection, int64_t offset, struct LoaderSection* loaderSection)
@@ -38,7 +39,6 @@ char* FindSymbolNameFromGlue(struct SectionData* dataSection, int64_t offset, st
 
 bool IsPatternEpilogue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount, PatternState* pState)
 {
-    pState->inEpilogue = false;
     if (memcmp(instructions[i]->raw, BEGIN_EPILOGUE_1, 2) != 0)
     {
         return false;
@@ -77,7 +77,6 @@ bool IsPatternEpilogue(struct CodeInstruction** instructions, uint32_t i, uint32
 
 bool IsPatternPrologue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount, PatternState* pState)
 {
-    pState->inPrologue = false;
     if (memcmp(instructions[i]->raw, BEGIN_PROLOGUE, 4) != 0)
     {
         return false;
@@ -100,6 +99,7 @@ bool IsPatternPrologue(struct CodeInstruction** instructions, uint32_t i, uint32
             if (rs == 1 && ra == 1)
             {
                 pState->inPrologue = true;
+                pState->inSubroutine = true;
                 pState->prologueEnd = i;
                 break;
             }
@@ -141,32 +141,59 @@ bool IsPatternGlue(struct CodeInstruction** instructions, uint32_t i, uint32_t i
     return true;
 }
 
-void AnnotateInstruction(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount, struct SectionData* pDataSection, struct LoaderSection* pLoader, PatternState* pState)
+bool PrintLabelAtAddress(struct CodeLabel** labels, uint32_t labelCount, uint64_t address)
+{
+    for (uint32_t j = 0; j < labelCount; j++)
+    {
+        if (labels[j]->address == address)
+        {
+            printf("%016x %s:", labels[j]->address, labels[j]->name);
+            return true;
+        }
+    }
+    return false;
+}
+
+void PrintInstruction(struct CodeInstruction* instr)
+{
+    printf("%8x:\t%02x %02x %02x %02x\t\t", instr->address, instr->raw[0], instr->raw[1], instr->raw[2], instr->raw[3]);
+    printf("%-7s\t%s\n", instr->opcode, instr->params);
+}
+
+void AnnotateInstruction(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount, struct SectionData* pDataSection, struct LoaderSection* pLoader,
+        struct CodeLabel** labels, uint32_t labelCount, PatternState* pState)
 {
     // Check state to see what we're doing now
     if (pState->inPrologue)
     {
-        if (i != pState->prologueEnd)
-        {
-            printf("|");
-        }
+        if (i < pState->prologueEnd)
+            printf("||");
         else
         {
-            printf("\\");
+            printf("|\\");
             pState->inPrologue = false;
         }
     }
     else if (pState->inEpilogue)
     {
         if (i != pState->epilogueEnd)
-            printf("|");
+            printf("||");
         else
         {
-            printf("\\");
+            printf(" \\");
+            PrintInstruction(instructions[i]);
+            printf("\n");
             pState->inEpilogue = false;
+            pState->inSubroutine = false;
+            return;
         }
     }
-    else if (IsPatternJumpToGlue(instructions, i, instructionCount))
+    else if (pState->inSubroutine)
+    {
+        printf("|");
+    }
+
+    if (IsPatternJumpToGlue(instructions, i, instructionCount))
     {
         uint32_t target = OSReadBigInt32(instructions[i]->raw, 0);
         target = (target & 0x03FFFFFC) >> 2;
@@ -189,13 +216,26 @@ void AnnotateInstruction(struct CodeInstruction** instructions, uint32_t i, uint
     }
     else if (IsPatternPrologue(instructions, i, instructionCount, pState))
     {
-        printf("Function Start\n");
-        printf("/");
+        printf("\nFunction Start ");
+        PrintLabelAtAddress(labels, labelCount, i * 4);
+        printf("\n");
+        printf(" /");
     }
     else if (IsPatternEpilogue(instructions, i, instructionCount, pState))
     {
         printf("/");
     }
+    else
+    {
+        if (PrintLabelAtAddress(labels, labelCount, i * 4))
+        {
+            printf("\n");
+            if (pState->inSubroutine)
+                printf("|");
+        }
+    }
+
+    PrintInstruction(instructions[i]);
 }
 
 uint32_t CountBranchInstructions(uint8_t* instructions, uint32_t length)
@@ -245,24 +285,11 @@ void ProcessCodeSection(struct SectionData* pCodeSection, struct SectionData* pD
 
     printf("\nCode section %d disassembly:\n", pCodeSection->id);
     PatternState state;
+    state.inPrologue = state.inEpilogue = state.inSubroutine = false;
     for (uint32_t i = 0, addr = 0; i < instructionCount; i++, addr += 4)
     {
-        struct CodeInstruction* instr = instructions[i];
-
-        for (uint32_t j = 0; j < labelCount; j++)
-        {
-            if (labels[j]->address == addr)
-            {
-                printf("\n%016x %s:\n", labels[j]->address, labels[j]->name);
-                break;
-            }
-        }
-
-        AnnotateInstruction(instructions, i, instructionCount, pDataSection, pLoader, &state);
-
-        printf("%8x:\t%02x %02x %02x %02x\t\t", instr->address, instr->raw[0], instr->raw[1], instr->raw[2], instr->raw[3]);
-        printf("%-7s\t%s\n", instr->opcode, instr->params);
-        free(instr);
+        AnnotateInstruction(instructions, i, instructionCount, pDataSection, pLoader, labels, labelCount, &state);
+        free(instructions[i]);
     }
 
     for (uint32_t i = 0; i < labelCount; i++)
