@@ -211,7 +211,9 @@ void AnnotateInstruction(struct CodeInstruction** instructions, uint32_t i, uint
     {
         int64_t signextvalue = GetSignExtValueFromDForm(instructions[i]->raw);
         uint32_t dataword = OSReadBigInt32(pDataSection->data, signextvalue);
-        printf("Looks like glue pointing to offset %lld in data area, containing %d (%s)\n",
+        printf("\n");
+        PrintLabelAtAddress(labels, labelCount, i * 4);
+        printf("\nGlue to offset %lld in data area, containing %d (%s)\n",
                 signextvalue, dataword, FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader));
     }
     else if (IsPatternPrologue(instructions, i, instructionCount, pState))
