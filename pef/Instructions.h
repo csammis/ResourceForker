@@ -2,26 +2,25 @@
 #define __PEF_INSTRUCTIONS_H__
 
 #define LABEL_NAME_SIZE 128
-struct CodeLabel
+typedef struct _CodeLabel
 {
     uint32_t address;
     char name[LABEL_NAME_SIZE];
-};
+} Label;
 
 #define INSTRUCTION_NAME_SIZE 10
 #define INSTRUCTION_PARAM_SIZE 128
-
-struct CodeInstruction
+typedef struct _CodeInstruction
 {
     uint32_t address;
     uint8_t raw[4];
     char opcode[INSTRUCTION_NAME_SIZE];
     char params[INSTRUCTION_PARAM_SIZE];
-};
+} Instruction;
 
-struct CodeInstruction* CreateInstruction(uint32_t address, uint8_t* data)
+Instruction* CreateInstruction(uint32_t address, uint8_t* data)
 {
-    struct CodeInstruction* pNew = malloc(sizeof(struct CodeInstruction));
+    Instruction* pNew = malloc(sizeof(Instruction));
     memset(pNew->opcode, 0, INSTRUCTION_NAME_SIZE);
     memset(pNew->params, 0, INSTRUCTION_PARAM_SIZE);
     pNew->address = address;
@@ -29,9 +28,9 @@ struct CodeInstruction* CreateInstruction(uint32_t address, uint8_t* data)
     return pNew;
 }
 
-struct CodeLabel* CreateLabel(uint32_t destination)
+Label* CreateLabel(uint32_t destination)
 {
-    struct CodeLabel* pNew = malloc(sizeof(struct CodeLabel));
+    Label* pNew = malloc(sizeof(Label));
     memset(pNew->name, 0, LABEL_NAME_SIZE);
     pNew->address = destination;
     snprintf(pNew->name, LABEL_NAME_SIZE, "<%x_dest>", destination);

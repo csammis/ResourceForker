@@ -3,17 +3,17 @@
 
 #include "Structures.h"
 
-struct RelocationState
+typedef struct _RelocationState
 {
     uint32_t relocAddr;
     uint32_t importIndex;
     uint32_t sectionC;
     uint32_t sectionD;
-};
+} RelocationState;
 
 #define ADD_TO_ADDRESS(x, y) OSWriteBigInt32(pSection->data, x, OSReadBigInt32(pSection->data, x) + y)
 
-uint32_t DoOneRelocationInstruction(uint8_t* data, uint32_t instructionOffset, struct RelocationState* state, struct SectionData* pSection, struct SectionData** sections)
+uint32_t DoOneRelocationInstruction(uint8_t* data, uint32_t instructionOffset, RelocationState* state, Section* pSection, Section** sections)
 {
     uint8_t block[2];
     memcpy(block, data + instructionOffset, 2);
@@ -161,7 +161,7 @@ uint32_t DoOneRelocationInstruction(uint8_t* data, uint32_t instructionOffset, s
     return instructionOffset + instructionSize;
 }
 
-void ProcessRelocationArea(uint8_t* data, uint32_t sectionCount, uint32_t headerOffset, uint32_t areaOffset, struct SectionData** sections)
+void ProcessRelocationArea(uint8_t* data, uint32_t sectionCount, uint32_t headerOffset, uint32_t areaOffset, Section** sections)
 {
     for (uint32_t section = 0; section < sectionCount; section++)
     {
@@ -170,13 +170,13 @@ void ProcessRelocationArea(uint8_t* data, uint32_t sectionCount, uint32_t header
         uint32_t relocCount         = OSReadBigInt32(data, thisOffset + 4);
         uint32_t firstRelocOffset   = OSReadBigInt32(data, thisOffset + 8);
 
-        struct SectionData* pSection = sections[affectedSection];
+        Section* pSection = sections[affectedSection];
         printf("\t\tGoing to read %d relocation instruction blocks for section %d with type %d\n", relocCount, affectedSection, pSection->type);
 
         uint32_t instructionOffset = areaOffset + firstRelocOffset;
         uint32_t endOffset = instructionOffset + (relocCount * 2);
 
-        struct RelocationState state;
+        RelocationState state;
         state.relocAddr = 0;
         state.importIndex = 0;
         state.sectionC = sections[0]->baseAddress;

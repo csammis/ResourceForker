@@ -31,7 +31,7 @@ uint32_t ReadOnePatternArgument(uint8_t* pData, bool firstArgument, uint32_t ind
     return arg;
 }
 
-void InflatePatternDataSection(struct SectionData* pSection)
+void InflatePatternDataSection(Section* pSection)
 {
     uint32_t dataLocationCount = 0;
     // Copy the section data pointer and create it again with the new total size

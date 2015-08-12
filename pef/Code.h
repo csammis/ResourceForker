@@ -30,14 +30,14 @@ typedef struct _PatternState
     bool inSubroutine;
 } PatternState;
 
-char* FindSymbolNameFromGlue(struct SectionData* dataSection, int64_t offset, struct LoaderSection* loaderSection)
+char* FindSymbolNameFromGlue(Section* dataSection, int64_t offset, LoaderSection* loaderSection)
 {
     uint32_t symbol = OSReadBigInt32(dataSection->data, offset);
     uint32_t symbolTableEntry = OSReadBigInt32(loaderSection->data, loaderSection->importSymbolTableOffset + (symbol * 4));
     return (char*)(loaderSection->data + loaderSection->loaderStringOffset + (symbolTableEntry & 0x00FFFFFF));
 }
 
-bool IsPatternEpilogue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount, PatternState* pState)
+bool IsPatternEpilogue(Instruction** instructions, uint32_t i, uint32_t instructionCount, PatternState* pState)
 {
     if (memcmp(instructions[i]->raw, BEGIN_EPILOGUE_1, 2) != 0)
     {
@@ -75,7 +75,7 @@ bool IsPatternEpilogue(struct CodeInstruction** instructions, uint32_t i, uint32
     return pState->inEpilogue;
 }
 
-bool IsPatternPrologue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount, PatternState* pState)
+bool IsPatternPrologue(Instruction** instructions, uint32_t i, uint32_t instructionCount, PatternState* pState)
 {
     if (memcmp(instructions[i]->raw, BEGIN_PROLOGUE, 4) != 0)
     {
@@ -111,7 +111,7 @@ bool IsPatternPrologue(struct CodeInstruction** instructions, uint32_t i, uint32
     return pState->inPrologue;
 }
 
-bool IsPatternJumpToGlue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount)
+bool IsPatternJumpToGlue(Instruction** instructions, uint32_t i, uint32_t instructionCount)
 {
     if (i + 1 >= instructionCount)
     {
@@ -123,7 +123,7 @@ bool IsPatternJumpToGlue(struct CodeInstruction** instructions, uint32_t i, uint
         memcmp(instructions[i + 1]->raw, RESTORE_R2_AFTER_GLUE, 4) == 0; // lwz r2, 20(r1)
 }
 
-bool IsPatternGlue(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount)
+bool IsPatternGlue(Instruction** instructions, uint32_t i, uint32_t instructionCount)
 {
     if (i + 5 >= instructionCount)
     {
@@ -141,7 +141,7 @@ bool IsPatternGlue(struct CodeInstruction** instructions, uint32_t i, uint32_t i
     return true;
 }
 
-bool PrintLabelAtAddress(struct CodeLabel** labels, uint32_t labelCount, uint64_t address)
+bool PrintLabelAtAddress(Label** labels, uint32_t labelCount, uint64_t address)
 {
     for (uint32_t j = 0; j < labelCount; j++)
     {
@@ -154,14 +154,14 @@ bool PrintLabelAtAddress(struct CodeLabel** labels, uint32_t labelCount, uint64_
     return false;
 }
 
-void PrintInstruction(struct CodeInstruction* instr)
+void PrintInstruction(Instruction* instr)
 {
     printf("%8x:\t%02x %02x %02x %02x\t\t", instr->address, instr->raw[0], instr->raw[1], instr->raw[2], instr->raw[3]);
     printf("%-7s\t%s\n", instr->opcode, instr->params);
 }
 
-void AnnotateInstruction(struct CodeInstruction** instructions, uint32_t i, uint32_t instructionCount, struct SectionData* pDataSection, struct LoaderSection* pLoader,
-        struct CodeLabel** labels, uint32_t labelCount, PatternState* pState)
+void AnnotateInstruction(Instruction** instructions, uint32_t i, uint32_t instructionCount, Section* pDataSection, LoaderSection* pLoader,
+        Label** labels, uint32_t labelCount, PatternState* pState)
 {
     // Check state to see what we're doing now
     if (pState->inPrologue)
@@ -260,17 +260,17 @@ uint32_t CountBranchInstructions(uint8_t* instructions, uint32_t length)
     return retval;
 }
 
-void ProcessCodeSection(struct SectionData* pCodeSection, struct SectionData* pDataSection, struct LoaderSection* pLoader)
+void ProcessCodeSection(Section* pCodeSection, Section* pDataSection, LoaderSection* pLoader)
 {
     uint32_t instructionCount = pCodeSection->length / 4;
-    struct CodeInstruction** instructions = malloc(sizeof(struct CodeInstruction) * instructionCount);
+    Instruction** instructions = malloc(sizeof(Instruction) * instructionCount);
 
     uint32_t labelCount = CountBranchInstructions(pCodeSection->data, pCodeSection->length);
     if (pCodeSection->id == pLoader->mainSection)
     {
         labelCount++;
     }
-    struct CodeLabel** labels = malloc(sizeof(struct CodeLabel) * labelCount);
+    Label** labels = malloc(sizeof(Label) * labelCount);
     uint32_t currentLabel = 0;
     if (pCodeSection->id == pLoader->mainSection)
     {

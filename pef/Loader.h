@@ -4,7 +4,7 @@
 #include "Structures.h"
 #include "Relocations.h"
 
-void ProcessLoaderSection(struct SectionData** sections, uint16_t loaderSectionIndex, struct LoaderSection* pSection)
+void ProcessLoaderSection(Section** sections, uint16_t loaderSectionIndex, LoaderSection* pSection)
 {
     pSection->data = sections[loaderSectionIndex]->data;
     uint8_t header[56];

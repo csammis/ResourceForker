@@ -9,7 +9,7 @@
 #include "Relocations.h"
 #include "Loader.h"
 
-void ReadPEFSection(uint16_t sectionIndex, FILE* input, struct SectionData* pSection)
+void ReadPEFSection(uint16_t sectionIndex, FILE* input, Section* pSection)
 {
     uint16_t sectionOffset = 40 + (sectionIndex * 28);
     uint8_t section[28];
@@ -87,12 +87,12 @@ void ProcessPEF(FILE* input)
     uint16_t sectionCount = OSReadBigInt16(header, 32);
     uint16_t instSectionCount = OSReadBigInt16(header, 34);
 
-    struct SectionData** sections = malloc(sizeof(struct SectionData*) * sectionCount);
+    Section** sections = malloc(sizeof(Section*) * sectionCount);
     uint16_t loaderSectionIndex = 0xFFFF;
     uint16_t dataSectionIndex = 0xFFFF;
     for (uint16_t i = 0; i < sectionCount; i++)
     {
-        sections[i] = malloc(sizeof(struct SectionData));
+        sections[i] = malloc(sizeof(Section));
         ReadPEFSection(i, input, sections[i]);
         if (sections[i]->type == 4)
         {
@@ -111,7 +111,7 @@ void ProcessPEF(FILE* input)
         return;
     }
 
-    struct LoaderSection loader;
+    LoaderSection loader;
     ProcessLoaderSection(sections, loaderSectionIndex, &loader);
 
     // Run back through and process sections which depend on loader information.

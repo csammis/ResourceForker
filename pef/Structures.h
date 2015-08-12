@@ -1,7 +1,7 @@
 #ifndef __PEF_STRUCTURES_H__
 #define __PEF_STRUCTURES_H__
 
-struct LoaderSection
+typedef struct _LoaderSection
 {
     uint8_t* data;
     uint32_t mainSection;
@@ -20,9 +20,9 @@ struct LoaderSection
     uint32_t exportSymbolCount;
 
     uint32_t importSymbolTableOffset;
-};
+} LoaderSection;
 
-struct SectionData
+typedef struct _SectionData
 {
     uint8_t id;
     uint8_t type;
@@ -30,6 +30,6 @@ struct SectionData
     uint32_t length;
     uint32_t totalLength;
     uint32_t baseAddress;
-};
+} Section;
 
 #endif

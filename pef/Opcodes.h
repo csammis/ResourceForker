@@ -150,7 +150,7 @@ void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode, char* instrBu
 }
 
 void PrintIForm(uint8_t* inst, uint8_t opcode, uint32_t currentAddress, char* instrBuffer, char* paramBuffer,
-         struct CodeLabel** currentLabel)
+         Label** currentLabel)
 {
     uint32_t target = OSReadBigInt32(inst, 0);
     target = ((target & 0x03FFFFFC) >> 2) << 2;
@@ -170,7 +170,7 @@ void PrintIForm(uint8_t* inst, uint8_t opcode, uint32_t currentAddress, char* in
 }
 
 void PrintBForm(uint8_t* inst, uint8_t opcode, uint32_t currentAddress, char* instrBuffer, char* paramBuffer,
-         struct CodeLabel** currentLabel)
+         Label** currentLabel)
 {
     uint8_t bo = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t bi = (inst[1] & 0x1F);
@@ -554,7 +554,7 @@ void HandleOpcode63(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* para
     }
 }
 
-bool PrintOpcode(struct CodeInstruction* pInstruction, struct CodeLabel** currentLabel, bool* isBranch)
+bool PrintOpcode(Instruction* pInstruction, Label** currentLabel, bool* isBranch)
 {
     uint32_t currentAddress = pInstruction->address;
     uint8_t* inst = pInstruction->raw;
