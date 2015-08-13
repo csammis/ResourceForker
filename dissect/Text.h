@@ -17,7 +17,7 @@ void WriteMacStringToFile(uint8_t* pBuffer, uint32_t length, FILE* out)
     }
 }
 
-void DissectTEXT(struct ResourceType* pResourceType)
+void DissectTEXT(ResourceType* pResourceType)
 {
     for (uint16_t i = 0; i < pResourceType->resourceCount; i++)
     {
@@ -37,7 +37,7 @@ uint8_t DissectSingleSTR(uint8_t* pBuffer, FILE* out)
     return length + 1;
 }
 
-void DissectSTR(struct ResourceType* pResourceType)
+void DissectSTR(ResourceType* pResourceType)
 {
     for (uint16_t i = 0; i < pResourceType->resourceCount; i++)
     {
@@ -49,7 +49,7 @@ void DissectSTR(struct ResourceType* pResourceType)
     }
 }
 
-void DissectSTRN(struct ResourceType* pResourceType)
+void DissectSTRN(ResourceType* pResourceType)
 {
     for (uint16_t i = 0; i < pResourceType->resourceCount; i++)
     {

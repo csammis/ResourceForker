@@ -4,31 +4,31 @@
 #include "RawStructures.h"
 #include <stdio.h>
 
-struct Resource
+typedef struct _Resource
 {
     char name[257];
     uint32_t dataSize;
     uint8_t* data;
-};
+} Resource;
 
-struct ResourceType
+typedef struct _ResourceType
 {
     char identifier[5];
     uint16_t resourceCount;
-    struct Resource** resources;
-};
+    Resource** resources;
+} ResourceType;
 
-struct ResourceMap
+typedef struct _ResourceMap
 {
     uint16_t resourceTypeCount;
-    struct ResourceType** resourceTypes;
-};
+    ResourceType** resourceTypes;
+} ResourceMap;
 
-void BuildResourceMap(struct ResourceMap* pResourceMap, FILE* f)
+void BuildResourceMap(ResourceMap* pResourceMap, FILE* f)
 {
-    struct HeaderDefinition header;
-    struct ResourceMapDefinition resourceMap;
-    struct TypeDefinition** typeList;
+    RawHeaderDefinition header;
+    RawResourceMapDefinition resourceMap;
+    RawTypeDefinition** typeList;
 
     ReadHeaderDefinition(&header, f);
     fseek(f, header.resourceMapOffset, SEEK_SET);
@@ -38,24 +38,24 @@ void BuildResourceMap(struct ResourceMap* pResourceMap, FILE* f)
     fseek(f, startOfTypeList, SEEK_SET);
     ReadTypeDefinitionList(&typeList, &pResourceMap->resourceTypeCount, f);
 
-    pResourceMap->resourceTypes = malloc(sizeof(struct ResourceType) * pResourceMap->resourceTypeCount);
+    pResourceMap->resourceTypes = malloc(sizeof(ResourceType) * pResourceMap->resourceTypeCount);
     for (uint16_t i = 0; i < pResourceMap->resourceTypeCount; i++)
     {
-        pResourceMap->resourceTypes[i] = malloc(sizeof(struct ResourceType));
+        pResourceMap->resourceTypes[i] = malloc(sizeof(ResourceType));
         memset(&pResourceMap->resourceTypes[i]->identifier, 0, 5);
         memcpy(&pResourceMap->resourceTypes[i]->identifier, &typeList[i]->identifier, 4);
 
-        struct ResourceDefinition** resourceDefinitionList;
+        RawResourceDefinition** resourceDefinitionList;
         fseek(f, startOfTypeList + typeList[i]->resourceListOffset, SEEK_SET);
         ReadResourceDefinitionList(&resourceDefinitionList, typeList[i]->resourceCount, f);
 
         pResourceMap->resourceTypes[i]->resourceCount = typeList[i]->resourceCount;
-        size_t mallocSize = sizeof(struct Resource*) * typeList[i]->resourceCount;
+        size_t mallocSize = sizeof(Resource*) * typeList[i]->resourceCount;
         pResourceMap->resourceTypes[i]->resources = malloc(mallocSize);
-        struct Resource* currentResource;
+        Resource* currentResource;
         for (uint16_t j = 0; j < typeList[i]->resourceCount; j++)
         {
-            pResourceMap->resourceTypes[i]->resources[j] = malloc(sizeof(struct Resource));
+            pResourceMap->resourceTypes[i]->resources[j] = malloc(sizeof(Resource));
             currentResource = pResourceMap->resourceTypes[i]->resources[j];
             memset(&currentResource->name, 0, 257);
             if (resourceDefinitionList[j]->nameOffset != 0xFFFF)
@@ -84,7 +84,7 @@ void BuildResourceMap(struct ResourceMap* pResourceMap, FILE* f)
     }
 }
 
-void FreeResourceMap(struct ResourceMap* pResourceMap)
+void FreeResourceMap(ResourceMap* pResourceMap)
 {
     for (uint16_t i = 0; i < pResourceMap->resourceTypeCount; i++)
     {

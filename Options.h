@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-struct ResourceForkerOptions
+typedef struct _ResourceForkerOptions
 {
     char* filename;
     bool writeBinaryData;
@@ -12,7 +12,7 @@ struct ResourceForkerOptions
     bool extractKnownTypes;
     bool readRawFile;
     bool disassemblePEF;
-};
+} ResourceForkerOptions;
 
 void PrintUsage()
 {
@@ -40,7 +40,7 @@ void PrintUsage()
     printf("\tWhen -r is not used, ResourceForker will try to read <filename>'s 'com.apple.ResourceFork' extended attribute and analyze that instead.\n");
 }
 
-bool ReadOptions(struct ResourceForkerOptions* pOptions, int argc, char** argv)
+bool ReadOptions(ResourceForkerOptions* pOptions, int argc, char** argv)
 {
     if (argc < 2)
     {

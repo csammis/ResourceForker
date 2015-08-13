@@ -41,7 +41,7 @@ void ClampSigned16BitPCM(int* pValue)
     if (value < -32768) *pValue = -32768;
 }
 
-uint32_t IMA4_Decode(struct Resource* pResource, uint32_t offset, uint32_t frameCount, short** outputBuffer)
+uint32_t IMA4_Decode(Resource* pResource, uint32_t offset, uint32_t frameCount, short** outputBuffer)
 {
     // 32 data bytes per frame, two samples per byte
     short* output = malloc(sizeof(uint16_t) * frameCount * 64);
@@ -98,7 +98,7 @@ uint32_t IMA4_Decode(struct Resource* pResource, uint32_t offset, uint32_t frame
     return outIndex;
 }
 
-void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset, bool verbose)
+void DissectCompressedSoundHeader(Resource* pResource, uint32_t offset, bool verbose)
 {
     uint32_t frameCount = OSReadBigInt32(pResource->data, offset);
     uint8_t aiffBuffer[10];
@@ -176,7 +176,7 @@ void DissectCompressedSoundHeader(struct Resource* pResource, uint32_t offset, b
     }
 }
 
-void DissectSoundHeader(struct Resource* pResource, uint32_t offset, bool verbose)
+void DissectSoundHeader(Resource* pResource, uint32_t offset, bool verbose)
 {
     uint32_t dataPointer = OSReadBigInt32(pResource->data, offset);
     uint32_t numChannels = OSReadBigInt32(pResource->data, offset + 4);
@@ -213,7 +213,7 @@ void DissectSoundHeader(struct Resource* pResource, uint32_t offset, bool verbos
     }
 }
 
-void DissectSingleSoundCommand(struct Resource* pResource, uint16_t rawCommand, uint16_t param1, uint32_t param2, bool verbose)
+void DissectSingleSoundCommand(Resource* pResource, uint16_t rawCommand, uint16_t param1, uint32_t param2, bool verbose)
 {
     bool hasAssociatedSoundData = ((rawCommand & 0x8000) != 0);
     uint16_t command = (rawCommand & 0x7FFF);
@@ -245,7 +245,7 @@ void DissectSingleSoundCommand(struct Resource* pResource, uint16_t rawCommand, 
     }
 }
 
-void DissectSingleSoundResource(struct Resource* pResource, bool verbose)
+void DissectSingleSoundResource(Resource* pResource, bool verbose)
 {
     if (verbose)
     {
@@ -292,7 +292,7 @@ void DissectSingleSoundResource(struct Resource* pResource, bool verbose)
     }
 }
 
-void DissectSound(struct ResourceType* pResourceType, bool verbose)
+void DissectSound(ResourceType* pResourceType, bool verbose)
 {
     for (uint16_t i = 0; i < pResourceType->resourceCount; i++)
     {

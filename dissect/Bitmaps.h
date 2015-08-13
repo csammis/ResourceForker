@@ -45,16 +45,16 @@ uint8_t macPalette[256][3] = {
 	{0xB7,0xB7,0xB7}, {0x9F,0x9F,0x9F}, {0x87,0x87,0x87}, {0x6F,0x6F,0x6F}, {0x57,0x57,0x57}, {0x3F,0x3F,0x3F}, {0x27,0x27,0x27}, {0x0F,0x0F,0x0F}, {0x00,0x00,0x00}}; /* Bingo */
 
 #define BITMAP_HEADER_SIZE 12
-struct BitmapHeader
+typedef struct _BitmapHeader
 {
     uint32_t fileSize;
     uint16_t reserved1;
     uint16_t reserved2;
     uint32_t dataOffset;
-};
+} BitmapHeader;
 
 #define BITMAP_INFO_HEADER_SIZE 40
-struct BitmapInfoHeader
+typedef struct _BitmapInfoHeader
 {
     uint32_t headerSize;
     uint32_t width;
@@ -67,24 +67,24 @@ struct BitmapInfoHeader
     uint32_t verticalResolution;
     uint32_t paletteCount;
     uint32_t importantColorCount;
-};
+} BitmapInfoHeader;
 
-void ConvertResourceToBitmap(struct Resource* pResource)
+void ConvertResourceToBitmap(Resource* pResource)
 {
     uint32_t bitmapSize = 2 + BITMAP_HEADER_SIZE + BITMAP_INFO_HEADER_SIZE + (8 * 32 * 32);
     uint8_t* pBitmapData = malloc(bitmapSize);
   
     uint8_t signature[2] = {0x42, 0x4D};
     memcpy(pBitmapData, &signature, 2);
-    struct BitmapHeader header;
+    BitmapHeader header;
     header.fileSize = bitmapSize;
     header.reserved1 = 0;
     header.reserved2 = 0;
-    header.dataOffset = 2 + BITMAP_HEADER_SIZE + sizeof(struct BitmapInfoHeader);
+    header.dataOffset = 2 + BITMAP_HEADER_SIZE + sizeof(BitmapInfoHeader);
     memcpy(pBitmapData + 2, &header, BITMAP_HEADER_SIZE);
 
-    struct BitmapInfoHeader infoHeader;
-    infoHeader.headerSize = sizeof(struct BitmapInfoHeader);
+    BitmapInfoHeader infoHeader;
+    infoHeader.headerSize = sizeof(BitmapInfoHeader);
     infoHeader.width = 32;
     infoHeader.height = (uint32_t)(-32);
     infoHeader.planes = 1;
@@ -95,7 +95,7 @@ void ConvertResourceToBitmap(struct Resource* pResource)
     infoHeader.verticalResolution = 2835;
     infoHeader.paletteCount = 0;
     infoHeader.importantColorCount = 0;
-    memcpy(pBitmapData + 2 + BITMAP_HEADER_SIZE, &infoHeader, sizeof(struct BitmapInfoHeader));
+    memcpy(pBitmapData + 2 + BITMAP_HEADER_SIZE, &infoHeader, sizeof(BitmapInfoHeader));
 
     uint8_t brg[3];
     for (uint32_t i = 0; i < pResource->dataSize; i++)
@@ -112,7 +112,7 @@ void ConvertResourceToBitmap(struct Resource* pResource)
     ReleaseFilename(filename);
 }
 
-void DissectIcl8(struct ResourceType* pResourceType)
+void DissectIcl8(ResourceType* pResourceType)
 {
     for (uint16_t i = 0; i < pResourceType->resourceCount; i++)
     {
@@ -120,12 +120,12 @@ void DissectIcl8(struct ResourceType* pResourceType)
     }
 }
 
-void DissectICN(struct ResourceType* pResourceType)
+void DissectICN(ResourceType* pResourceType)
 {
     // These are 1bpp 32x32 icons so create 8bpp icons from them and pass to the icl8 extractor
     for (uint16_t i = 0; i < pResourceType->resourceCount; i++)
     {
-        struct Resource* p8bppIcon = malloc(sizeof(struct Resource));
+        Resource* p8bppIcon = malloc(sizeof(Resource));
         memset(p8bppIcon->name, 0, 257);
         memcpy(p8bppIcon->name, pResourceType->resources[i]->name, strlen(pResourceType->resources[i]->name));
         p8bppIcon->dataSize = 4 * pResourceType->resources[i]->dataSize;

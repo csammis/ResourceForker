@@ -27,17 +27,17 @@
         printf("...done\n"); \
     }
 
-void ProcessMap(struct ResourceMap* pMap, struct ResourceForkerOptions* pOptions);
+void ProcessMap(ResourceMap* pMap, ResourceForkerOptions* pOptions);
 
 int main(int argc, char** argv)
 {
-    struct ResourceForkerOptions options;
+    ResourceForkerOptions options;
     if (!ReadOptions(&options, argc, argv))
     {
         return 1;
     }
 
-    struct ResourceMap map;
+    ResourceMap map;
 
     printf("Processing file %s\n", options.filename);
     if (options.readRawFile == true)
@@ -103,7 +103,7 @@ int main(int argc, char** argv)
     return 0;
 }
 
-void ProcessMap(struct ResourceMap* pMap, struct ResourceForkerOptions* pOptions)
+void ProcessMap(ResourceMap* pMap, ResourceForkerOptions* pOptions)
 {
     if (pOptions->writeBinaryData)
     {
@@ -116,7 +116,7 @@ void ProcessMap(struct ResourceMap* pMap, struct ResourceForkerOptions* pOptions
             chdir(pMap->resourceTypes[i]->identifier);
             for (uint16_t j = 0; j < pMap->resourceTypes[i]->resourceCount; j++)
             {
-                struct Resource* pCurrent = pMap->resourceTypes[i]->resources[j];
+                Resource* pCurrent = pMap->resourceTypes[i]->resources[j];
 
                 //cstodo still buggy when there are multiple resources with the same type / name
                 FILE* writer = fopen(pCurrent->name, "wb");
@@ -137,7 +137,7 @@ void ProcessMap(struct ResourceMap* pMap, struct ResourceForkerOptions* pOptions
 
             for (uint16_t j = 0; j < pMap->resourceTypes[i]->resourceCount; j++)
             {
-                struct Resource* pCurrent = pMap->resourceTypes[i]->resources[j];
+                Resource* pCurrent = pMap->resourceTypes[i]->resources[j];
                 printf("  %d: %s is %d bytes\n", j + 1, pCurrent->name, pCurrent->dataSize);
             }
         }

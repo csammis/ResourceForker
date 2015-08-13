@@ -4,7 +4,7 @@
 #include "../NiceStructures.h"
 #include "../Common.h"
 
-void DissectSingleNAME(struct Resource* pResource)
+void DissectSingleNAME(Resource* pResource)
 {
     char* filename = CreateFilename(pResource->name, ".txt");
     FILE* out = fopen(filename, "w");
@@ -22,7 +22,7 @@ void DissectSingleNAME(struct Resource* pResource)
     ReleaseFilename(filename);
 }
 
-void DissectNAME(struct ResourceType* pResourceType)
+void DissectNAME(ResourceType* pResourceType)
 {
     for (uint16_t i = 0; i < pResourceType->resourceCount; i++)
     {
@@ -30,7 +30,7 @@ void DissectNAME(struct ResourceType* pResourceType)
     }
 }
 
-void DissectDLLN(struct ResourceType* pResourceType)
+void DissectDLLN(ResourceType* pResourceType)
 {
     for (uint16_t i = 0; i < pResourceType->resourceCount; i++)
     {
