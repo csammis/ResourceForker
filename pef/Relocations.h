@@ -38,7 +38,7 @@ uint32_t DoOneRelocationInstruction(uint8_t* data, uint32_t instructionOffset, R
         {
             case 0x20:
                 {
-                    uint8_t runLength = (opcode & 0x0F) + 1;
+                    uint8_t runLength = ((block[0] & 0x01) << 8 | block[1]);
                     switch (opcode)
                     {
                         case 0x20:
