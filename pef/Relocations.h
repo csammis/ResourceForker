@@ -30,13 +30,15 @@ uint32_t DoOneRelocationInstruction(uint8_t* data, uint32_t instructionOffset, R
     else if (opcode & 0x40)
     {
         // Adjust value for don't-care bits, the position of which vary by the value of the upper nibble
-        if (opcode & 0x50)
+        if ((opcode & 0x50) == 0x50)
         {
             opcode &= 0xFE;
             instructionSize = 4;
         }
         else
+        {
             opcode &= 0xF8;
+        }
     }
 
     switch (opcode)
@@ -52,10 +54,16 @@ uint32_t DoOneRelocationInstruction(uint8_t* data, uint32_t instructionOffset, R
                 }
             }
             break;
-        case 0x21:
+        case 0x20:
             for (uint16_t j = 0; j < runLengthOrIndex; j++, state->relocAddr += 4)
             {
                 ADD_TO_ADDRESS(state->relocAddr, state->sectionC);
+            }
+            break;
+        case 0x21:
+            for (uint16_t j = 0; j < runLengthOrIndex; j++, state->relocAddr += 4)
+            {
+                ADD_TO_ADDRESS(state->relocAddr, state->sectionD);
             }
             break;
         case 0x22:
@@ -138,6 +146,7 @@ uint32_t DoOneRelocationInstruction(uint8_t* data, uint32_t instructionOffset, R
             break;
         case 0x58: printf("DEBUG: unproccessed relocation instruction kPEFRelocLgRepeat\n"); break;
         case 0x5A: printf("DEBUG: unproccessed relocation instruction kPEFRelocSetOrBySection\n"); break;
+        default: printf("DEBUG: unrecognized relocation instruction with opcode 0x%x\n", opcode); break;
     }
 
     return instructionOffset + instructionSize;
