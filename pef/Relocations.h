@@ -22,7 +22,8 @@ uint32_t DoOneRelocationInstruction(uint8_t* data, uint32_t instructionOffset, R
     uint32_t instructionSize = 2;
 
     uint8_t opcode = (block[0] & 0xFE) >> 1;
-    uint16_t runLengthOrIndex = ((block[0] & 0x01) << 8 | block[1]);
+    uint16_t index = ((block[0] & 0x01) << 8 | block[1]);
+    uint16_t runLength = index + 1;
     if ((opcode & 0x60) == 0)
     {
         opcode = 0;
@@ -55,19 +56,19 @@ uint32_t DoOneRelocationInstruction(uint8_t* data, uint32_t instructionOffset, R
             }
             break;
         case 0x20:
-            for (uint16_t j = 0; j < runLengthOrIndex; j++, state->relocAddr += 4)
+            for (uint16_t j = 0; j < runLength; j++, state->relocAddr += 4)
             {
                 ADD_TO_ADDRESS(state->relocAddr, state->sectionC);
             }
             break;
         case 0x21:
-            for (uint16_t j = 0; j < runLengthOrIndex; j++, state->relocAddr += 4)
+            for (uint16_t j = 0; j < runLength; j++, state->relocAddr += 4)
             {
                 ADD_TO_ADDRESS(state->relocAddr, state->sectionD);
             }
             break;
         case 0x22:
-            for (uint16_t j = 0; j < runLengthOrIndex; j++, state->relocAddr += 12)
+            for (uint16_t j = 0; j < runLength; j++, state->relocAddr += 12)
             {
                 ADD_TO_ADDRESS(state->relocAddr, state->sectionC);
                 ADD_TO_ADDRESS(state->relocAddr + 4, state->sectionD);
@@ -75,38 +76,38 @@ uint32_t DoOneRelocationInstruction(uint8_t* data, uint32_t instructionOffset, R
             }
             break;
         case 0x23:
-            for (uint16_t j = 0; j < runLengthOrIndex; j++, state->relocAddr += 8)
+            for (uint16_t j = 0; j < runLength; j++, state->relocAddr += 8)
             {
                 ADD_TO_ADDRESS(state->relocAddr, state->sectionC);
                 ADD_TO_ADDRESS(state->relocAddr + 4, state->sectionD);
             }
             break;
         case 0x24:
-            for (uint16_t j = 0; j < runLengthOrIndex; j++, state->relocAddr += 8)
+            for (uint16_t j = 0; j < runLength; j++, state->relocAddr += 8)
             {
                 ADD_TO_ADDRESS(state->relocAddr, state->sectionD);
                 // No write to offset 4
             }
             break;
         case 0x25:
-            for (uint16_t j = 0; j < runLengthOrIndex; j++, state->relocAddr += 4, state->importIndex++)
+            for (uint16_t j = 0; j < runLength; j++, state->relocAddr += 4, state->importIndex++)
             {
                 ADD_TO_ADDRESS(state->relocAddr, state->importIndex); //cstodo hm
             }
             break;
         case 0x30:
-            OSWriteBigInt32(pSection->data, state->relocAddr, runLengthOrIndex);
-            state->importIndex = runLengthOrIndex + 1;
+            OSWriteBigInt32(pSection->data, state->relocAddr, index);
+            state->importIndex = index + 1;
             state->relocAddr += 4;
             break;
         case 0x31:
-            state->sectionC = sections[runLengthOrIndex]->baseAddress;
+            state->sectionC = sections[index]->baseAddress;
             break;
         case 0x32:
-            state->sectionD = sections[runLengthOrIndex]->baseAddress;
+            state->sectionD = sections[index]->baseAddress;
             break;
         case 0x33:
-            ADD_TO_ADDRESS(state->relocAddr, sections[runLengthOrIndex]->baseAddress);
+            ADD_TO_ADDRESS(state->relocAddr, sections[index]->baseAddress);
             state->relocAddr += 4;
             break;
         case 0x40:
