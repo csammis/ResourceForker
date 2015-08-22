@@ -587,7 +587,13 @@ bool PrintOpcode(Instruction* pInstruction, Label** currentLabel, bool* isBranch
         case 19: switch(extOpcode)
         {
             CASE_PRINT(0, mcrf); break;
-            CASE_PRINT(16, bclr); break;
+            CASE_PRINT(16, bclr);
+            {
+                pInstruction->pExtraInfo = malloc(14);
+                snprintf(pInstruction->pExtraInfo, 13, "\t\t\t# return;");
+                pInstruction->pExtraInfo[13] = 0;
+            }
+            break;
             CASE_PRINT(18, rfid); break;
             CASE_PRINT(33, crnor); break;
             CASE_PRINT(129, crandc); break;

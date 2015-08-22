@@ -154,12 +154,6 @@ bool PrintLabelAtAddress(Label** labels, uint32_t labelCount, uint64_t address)
     return false;
 }
 
-void PrintInstruction(Instruction* instr)
-{
-    printf("%8x:\t%02x %02x %02x %02x\t\t", instr->address, instr->raw[0], instr->raw[1], instr->raw[2], instr->raw[3]);
-    printf("%-7s\t%s\n", instr->opcode, instr->params);
-}
-
 void AnnotateInstruction(Instruction** instructions, uint32_t i, uint32_t instructionCount, Section* pDataSection, LoaderSection* pLoader,
         Label** labels, uint32_t labelCount, PatternState* pState)
 {
@@ -204,7 +198,7 @@ void AnnotateInstruction(Instruction** instructions, uint32_t i, uint32_t instru
         {
             int64_t signextvalue = GetSignExtValueFromDForm(instructions[glueIndex]->raw);
             char* symbolName = FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader);
-            snprintf(instructions[i]->params + strlen(instructions[i]->params), 26 + strlen(symbolName), " Glue to symbol %s", symbolName);
+            snprintf(instructions[i]->params + strlen(instructions[i]->params), 7 + strlen(symbolName), "\t# %s();", symbolName);
         }
     }
     else if (IsPatternGlue(instructions, i, instructionCount))
@@ -297,7 +291,7 @@ void ProcessCodeSection(Section* pCodeSection, Section* pDataSection, LoaderSect
     for (uint32_t i = 0, addr = 0; i < instructionCount; i++, addr += 4)
     {
         AnnotateInstruction(instructions, i, instructionCount, pDataSection, pLoader, labels, labelCount, &state);
-        free(instructions[i]);
+        FreeInstruction(instructions[i]);
     }
 
     for (uint32_t i = 0; i < labelCount; i++)
