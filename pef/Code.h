@@ -5,6 +5,7 @@
 #include "Instructions.h"
 #include "Opcodes.h"
 #include "Loader.h"
+#include "Symbol.h"
 
 uint8_t RESTORE_R2_AFTER_GLUE[4] = { 0x80, 0x41, 0x00, 0x14 }; // lwz r2, 20(r1)
 uint8_t BEGIN_PROLOGUE[4]        = { 0x7c, 0x08, 0x02, 0xa6 }; // mfspr LR, r0
@@ -30,11 +31,10 @@ typedef struct _PatternState
     bool inSubroutine;
 } PatternState;
 
-char* FindSymbolNameFromGlue(Section* dataSection, int64_t offset, LoaderSection* loaderSection)
+Symbol* FindSymbolNameFromGlue(Section* dataSection, int64_t offset, LoaderSection* loaderSection)
 {
     uint32_t symbol = OSReadBigInt32(dataSection->data, offset);
-    uint32_t symbolTableEntry = OSReadBigInt32(loaderSection->data, loaderSection->importSymbolTableOffset + (symbol * 4));
-    return (char*)(loaderSection->data + loaderSection->loaderStringOffset + (symbolTableEntry & 0x00FFFFFF));
+    return CreateSymbolFromTable(loaderSection, symbol);
 }
 
 bool IsPatternEpilogue(Instruction** instructions, uint32_t i, uint32_t instructionCount, PatternState* pState)
@@ -197,8 +197,8 @@ void AnnotateInstruction(Instruction** instructions, uint32_t i, uint32_t instru
         if (IsPatternGlue(instructions, glueIndex, instructionCount))
         {
             int64_t signextvalue = GetSignExtValueFromDForm(instructions[glueIndex]->raw);
-            char* symbolName = FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader);
-            snprintf(instructions[i]->params + strlen(instructions[i]->params), 7 + strlen(symbolName), "\t# %s();", symbolName);
+            char* symbolName = FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader)->unmangledName;
+            snprintf(instructions[i]->params + strlen(instructions[i]->params), 7 + strlen(symbolName), "\t# %s;", symbolName);
         }
     }
     else if (IsPatternGlue(instructions, i, instructionCount))
@@ -207,8 +207,8 @@ void AnnotateInstruction(Instruction** instructions, uint32_t i, uint32_t instru
         uint32_t dataword = OSReadBigInt32(pDataSection->data, signextvalue);
         printf("\n");
         PrintLabelAtAddress(labels, labelCount, i * 4);
-        printf("\nGlue to offset %lld in data area, containing %d (%s)\n",
-                signextvalue, dataword, FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader));
+        char* symbolName = FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader)->mangledName;
+        printf("\nGlue to offset %lld in data area, containing %d (%s)\n", signextvalue, dataword, symbolName);
     }
     else if (IsPatternPrologue(instructions, i, instructionCount, pState))
     {
