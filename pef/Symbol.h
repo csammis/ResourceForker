@@ -21,8 +21,6 @@ Symbol* CreateSymbolFromTable(LoaderSection* loader, uint32_t symbolIndex)
     memset(symbol->unmangledName, 0, SYMBOL_NAME_LENGTH);
 
     char* argStart = 0;
-    bool isDtor = false, isCtor = false;
-
     // Deal with special cases for new and delete before general case
     if (strncmp(symbol->mangledName, "__nw__", 6) == 0)
     {
