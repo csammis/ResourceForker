@@ -10,9 +10,6 @@ typedef struct _Symbol
     char unmangledName[SYMBOL_NAME_LENGTH];
 } Symbol;
 
-#define OPERATOR_NEW "operator new"
-#define OPERATOR_DELETE "operator delete"
-
 #define APPEND_LITERAL_TO_SYMBOL(x) snprintf(symbol->unmangledName + strlen(symbol->unmangledName), strlen(x) + 1, x)
 #define APPEND_TO_SYMBOL(x) snprintf(symbol->unmangledName + strlen(symbol->unmangledName), strlen(x) + 1, "%s", x)
 
@@ -26,42 +23,50 @@ Symbol* CreateSymbolFromTable(LoaderSection* loader, uint32_t symbolIndex)
     char* argStart = 0;
     bool isDtor = false, isCtor = false;
 
+    // Deal with special cases for new and delete before general case
     if (strncmp(symbol->mangledName, "__nw__", 6) == 0)
     {
         argStart = symbol->mangledName + 6;
-        snprintf(symbol->unmangledName, strlen(OPERATOR_NEW) + 1, OPERATOR_NEW);
+        APPEND_LITERAL_TO_SYMBOL("operator new");
     }
     else if (strncmp(symbol->mangledName, "__dl__", 6) == 0)
     {
         argStart = symbol->mangledName + 6;
-        snprintf(symbol->unmangledName, strlen(OPERATOR_DELETE) + 1, OPERATOR_DELETE);
+        APPEND_LITERAL_TO_SYMBOL("operator delete");
     }
     else
     {
         char* funcStart = symbol->mangledName;
         char* funcEnd = symbol->mangledName;
-        char* classStart = 0;
-        char* classEnd = 0;
         if (*funcEnd == '_' && funcStart == funcEnd)
         {
             funcEnd += 2;
         }
-        while (*funcEnd && *funcEnd != '_') funcEnd++;
+        while (*funcEnd && strncmp(funcEnd, "__", 2) != 0)
+        {
+            funcEnd++;
+        }
+
+        char funcName[256] = { '\0' };
+        snprintf(funcName, funcEnd - funcStart + 1, "%s", funcStart);
 
         if (*funcEnd)
         {
-            classStart = funcEnd + 2;
+            char* classStart = funcEnd + 2;
             long length = strtol(classStart, &classStart, 10);
-            classEnd = classStart + length;
+            char* classEnd = classStart + length;
             snprintf(symbol->unmangledName, (classEnd - classStart + 1), "%s", classStart);
             APPEND_LITERAL_TO_SYMBOL("::");
-            snprintf(symbol->unmangledName + strlen(symbol->unmangledName), funcEnd - funcStart + 1, "%s", funcStart);
             argStart = classEnd + 1;
         }
+
+        // Deal with the special cases for constructors and destructors
+        if (strncmp(funcName, "__ct", 4) == 0)
+            APPEND_LITERAL_TO_SYMBOL("ctor");
+        else if (strncmp(funcName, "__dt", 4) == 0)
+            APPEND_LITERAL_TO_SYMBOL("dtor");
         else
-        {
-            snprintf(symbol->unmangledName, funcEnd - funcStart + 1, "%s", funcStart);
-        }
+            APPEND_TO_SYMBOL(funcName);
     }
 
     APPEND_LITERAL_TO_SYMBOL("(");
