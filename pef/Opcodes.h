@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include "Instructions.h"
 
+char NO_OP[4] = { 0x60, 0x00, 0x00, 0x00 };
+
 #define READ_OPCODE(x) ((x[0] & 0xFC) >> 2)
 
 #define INSTR_BUFFER_APPEND(x) snprintf(instrBuffer + strlen(instrBuffer), INSTRUCTION_NAME_SIZE - strlen(instrBuffer), x)
@@ -15,13 +17,13 @@
 
 #define A_FORM PrintAForm(inst, opcode, instrBuffer, paramBuffer)
 #define B_FORM PrintBForm(inst, opcode, currentAddress, instrBuffer, paramBuffer, currentLabel)
-#define D_FORM PrintDForm(inst, opcode, instrBuffer, paramBuffer)
+#define D_FORM PrintDForm(inst, opcode, pInstruction)
 #define DS_FORM PrintDSForm(inst, opcode, instrBuffer, paramBuffer)
 #define I_FORM PrintIForm(inst, opcode, currentAddress, instrBuffer, paramBuffer, currentLabel)
 #define M_FORM PrintMForm(inst, opcode, instrBuffer, paramBuffer)
 #define MD_FORM PrintMDForm(inst, opcode, instrBuffer, paramBuffer)
 #define X_FORM PrintXForm(inst, opcode, extOpcode, instrBuffer, paramBuffer)
-#define XL_FORM PrintXLForm(inst, opcode, extOpcode, instrBuffer, paramBuffer)
+#define XL_FORM PrintXLForm(inst, opcode, extOpcode, pInstruction)
 #define XFX_FORM PrintXFXForm(inst, opcode, paramBuffer)
 
 void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode, char* instrBuffer, char* paramBuffer)
@@ -273,7 +275,7 @@ void PrintXFLForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramB
     snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "%d, fpr%d", flm, frb);
 }
 
-void PrintXLForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode, char* instrBuffer, char* paramBuffer)
+void PrintXLForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode, Instruction* pInstruction)
 {
     uint8_t bt = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t ba = (inst[1] & 0x1F);
@@ -285,7 +287,7 @@ void PrintXLForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode, char* instrB
             {
                 uint8_t bf = (bt & 0x1C) >> 2;
                 uint8_t bfa = (ba & 0x1E) >> 1;
-                snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "%d, %d", bf, bfa);
+                snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "%d, %d", bf, bfa);
             }
             break;
         case 33:
@@ -296,13 +298,18 @@ void PrintXLForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode, char* instrB
         case 289:
         case 417:
         case 449:
-            snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "%d, %d, %d", bt, ba, bb);
+            snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "%d, %d, %d", bt, ba, bb);
             break;
         case 16:
         case 528:
             {
                 uint8_t bh = (bb & 0x03);
-                snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "%d, %d, %d", bt, ba, bh);
+                snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "%d, %d, %d", bt, ba, bh);
+                if (extOpcode == 16 && bh == 0) // Instruction is a return from subroutine
+                {
+                    pInstruction->pExtraInfo = malloc(10);
+                    snprintf(pInstruction->pExtraInfo, 10, "# return;");
+                }
             }
             break;
         default: printf("\tDEBUG: unrecognized extended opcode %d for opcode %d", extOpcode, opcode);
@@ -460,30 +467,35 @@ int64_t GetSignExtValueFromDForm(uint8_t* inst)
     return S64_EXT_16(value);
 }
 
-void PrintDForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
+void PrintDForm(uint8_t* inst, uint8_t opcode, Instruction* pInstruction)
 {
     uint8_t rst = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t ra = (inst[1] & 0x1F);
 
     if (opcode == 2 || opcode == 3) // Fixed point trap instructions
     {
-        snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "0x%02x, r%d, %lld", rst, ra, GetSignExtValueFromDForm(inst));
+        snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "0x%02x, r%d, %lld", rst, ra, GetSignExtValueFromDForm(inst));
     }
     else if (opcode == 10) // cmpli
     {
-        snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "r%d, %u", ra, GetValueFromDForm(inst));
+        snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d, %u", ra, GetValueFromDForm(inst));
     }
     else if (opcode == 11) // cmpi
     {
-        snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "r%d, %lld", ra, GetSignExtValueFromDForm(inst));
+        snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d, %lld", ra, GetSignExtValueFromDForm(inst));
     }
     else if (opcode >= 48 && opcode <= 55) // FPR instructions
     {
-        snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "fpr%d, %lld(r%d)", rst, GetSignExtValueFromDForm(inst), ra);
+        snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "fpr%d, %lld(r%d)", rst, GetSignExtValueFromDForm(inst), ra);
     }
     else
     {
-        snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "r%d, %lld(r%d)", rst, GetSignExtValueFromDForm(inst), ra);
+        snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d, %lld(r%d)", rst, GetSignExtValueFromDForm(inst), ra);
+        if (memcmp(inst, NO_OP, 4) == 0)
+        {
+            pInstruction->pExtraInfo = malloc(11);
+            snprintf(pInstruction->pExtraInfo, 11, "# no-op();");
+        }
     }
 }
 
@@ -588,11 +600,6 @@ bool PrintOpcode(Instruction* pInstruction, Label** currentLabel, bool* isBranch
         {
             CASE_PRINT(0, mcrf); break;
             CASE_PRINT(16, bclr);
-            {
-                pInstruction->pExtraInfo = malloc(14);
-                snprintf(pInstruction->pExtraInfo, 13, "\t\t\t# return;");
-                pInstruction->pExtraInfo[13] = 0;
-            }
             break;
             CASE_PRINT(18, rfid); break;
             CASE_PRINT(33, crnor); break;

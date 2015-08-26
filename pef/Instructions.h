@@ -35,9 +35,7 @@ void PrintInstruction(Instruction* instr)
     printf("%8x:\t%02x %02x %02x %02x\t\t", instr->address, instr->raw[0], instr->raw[1], instr->raw[2], instr->raw[3]);
     printf("%-7s\t%s", instr->opcode, instr->params);
     if (instr->pExtraInfo)
-    {
-        printf("%s", instr->pExtraInfo);
-    }
+        printf("\t\t\t%s", instr->pExtraInfo);
     printf("\n");
 }
 
