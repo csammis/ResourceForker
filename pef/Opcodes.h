@@ -479,10 +479,15 @@ void PrintDForm(uint8_t* inst, uint8_t opcode, Instruction* pInstruction)
             snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "%d, r%d, %lld", rst, ra, GetSignExtValueFromDForm(inst));
             break;
         case 10:
-            snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d, %u", ra, GetValueFromDForm(inst));
-            break;
         case 11:
-            snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d, %lld", ra, GetSignExtValueFromDForm(inst));
+            {
+                uint8_t bf = rst >> 2;
+                uint8_t l = rst & 0x01;
+                if (opcode == 11)
+                    snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "%d, %d, r%d, %lld", bf, l, ra, GetSignExtValueFromDForm(inst));
+                else
+                    snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "%d, %d, r%d, %u", bf, l, ra, GetValueFromDForm(inst));
+            }
             break;
         case 14:
         case 15:
