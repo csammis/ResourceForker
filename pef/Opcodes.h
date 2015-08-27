@@ -24,7 +24,9 @@ char NO_OP[4] = { 0x60, 0x00, 0x00, 0x00 };
 #define MD_FORM PrintMDForm(inst, opcode, instrBuffer, paramBuffer)
 #define X_FORM PrintXForm(inst, opcode, extOpcode, instrBuffer, paramBuffer)
 #define XL_FORM PrintXLForm(inst, opcode, extOpcode, pInstruction)
-#define XFX_FORM PrintXFXForm(inst, opcode, paramBuffer)
+#define XFX_FORM PrintXFXForm(inst, opcode, extOpcode, pInstruction)
+#define XO_FORM PrintXOForm(inst, opcode, extOpcode, pInstruction)
+#define Q_FORM snprintf(pInstruction->params, 2, "?")
 
 void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode, char* instrBuffer, char* paramBuffer)
 {
@@ -244,24 +246,84 @@ void PrintAForm(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuf
     }
 }
 
-void PrintXFXForm(uint8_t* inst, uint8_t opcode, char* paramBuffer)
+void PrintXOForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode, Instruction* pInstruction)
+{
+    uint8_t rst = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
+    uint8_t ra = (inst[1] & 0x1F);
+    uint8_t rb = (inst[2] & 0xF8) >> 3;
+
+    char* instrBuffer = pInstruction->opcode;
+
+    if (inst[2] & 0x04) INSTR_BUFFER_APPEND("o");
+    if (inst[3] & 0x01) INSTR_BUFFER_APPEND(".");
+
+    switch (extOpcode)
+    {
+        case 8:
+        case 9:
+        case 10:
+        case 11:
+        case 40:
+        case 73:
+        case 75:
+        case 136:
+        case 138:
+        case 233:
+        case 235:
+        case 266:
+        case 457:
+        case 459:
+        case 489:
+        case 491:
+            snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d, r%d, r%d", rst, ra, rb);
+            break;
+        case 104:
+        case 200:
+        case 202:
+        case 232:
+        case 234:
+            snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d, r%d", rst, ra);
+            break;
+        default: printf("DEBUG: unrecognized extended opcode %d for XO-form instruction", extOpcode);
+    }
+}
+
+void PrintXFXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode, Instruction* pInstruction)
 {
     uint8_t rs = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
-    uint16_t spr = (inst[1] & 0x1F);
 
-    switch (spr)
+    switch (extOpcode)
     {
-        case 1:
-            snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "XER, r%d", rs);
+        case 19:
+            snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d", rs);
             break;
-        case 8:
-            snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "LR, r%d", rs);
+        case 144:
+            {
+                uint8_t fxm = ((inst[1] & 0x0F) << 4) | ((inst[2] & 0xF0) >> 4);
+                snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "%d, r%d", fxm, rs);
+            }
             break;
-        case 9:
-            snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "CTR, r%d", rs);
+        case 339:
+        case 467:
+            {
+                uint16_t spr = (inst[1] & 0x1F);
+                switch (spr)
+                {
+                    case 1:
+                        snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "XER, r%d", rs);
+                        break;
+                    case 8:
+                        snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "LR, r%d", rs);
+                        break;
+                    case 9:
+                        snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "CTR, r%d", rs);
+                        break;
+                    default:
+                        printf("\tDEBUG: unrecognized SPR %d for opcode %d", spr, opcode);
+                }
+            }
             break;
-        default:
-            printf("\tDEBUG: unrecognized SPR %d for opcode %d", spr, opcode);
+        default: printf("DEBUG: unrecognized extended opcode %d for XFX-form instruction", extOpcode);
     }
 }
 
@@ -644,13 +706,12 @@ bool PrintOpcode(Instruction* pInstruction, Label** currentLabel, bool* isBranch
         CASE_PRINT(14, addi);   D_FORM; break;
         CASE_PRINT(15, addis);  D_FORM; break;
         CASE_PRINT(16, bc);     B_FORM; *isBranch = true; break;
-        CASE_PRINT(17, sc);             break;
+        CASE_PRINT(17, sc);     Q_FORM; break;
         CASE_PRINT(18, b);      I_FORM; *isBranch = true; break;
         case 19: switch(extOpcode)
         {
             CASE_PRINT(0, mcrf); break;
-            CASE_PRINT(16, bclr);
-            break;
+            CASE_PRINT(16, bclr); break;
             CASE_PRINT(18, rfid); break;
             CASE_PRINT(33, crnor); break;
             CASE_PRINT(129, crandc); break;
@@ -682,11 +743,11 @@ bool PrintOpcode(Instruction* pInstruction, Label** currentLabel, bool* isBranch
         {
             CASE_PRINT(0, cmp);         X_FORM; break;
             CASE_PRINT(4, tw);          X_FORM; break;
-            CASE_PRINT(8, subfc); break;
-            CASE_PRINT(9, mulhdu); break;
-            CASE_PRINT(10, addc); break;
-            CASE_PRINT(11, mulhwu); break;
-            CASE_PRINT(19, mfcr); break;
+            CASE_PRINT(8, subfc);       XO_FORM; break;
+            CASE_PRINT(9, mulhdu);      XO_FORM; break;
+            CASE_PRINT(10, addc);       XO_FORM; break;
+            CASE_PRINT(11, mulhwu);     XO_FORM; break;
+            CASE_PRINT(19, mfcr);       XFX_FORM; break;
             CASE_PRINT(20, lwarx);      X_FORM; break;
             CASE_PRINT(21, ldx);        X_FORM; break;
             CASE_PRINT(23, lwzx);       X_FORM; break;
@@ -695,25 +756,25 @@ bool PrintOpcode(Instruction* pInstruction, Label** currentLabel, bool* isBranch
             CASE_PRINT(27, sld);        X_FORM; break;
             CASE_PRINT(28, and);        X_FORM; break;
             CASE_PRINT(32, cmpl);       X_FORM; break;
-            CASE_PRINT(40, subf); break;
+            CASE_PRINT(40, subf);       XO_FORM; break;
             CASE_PRINT(53, ldux);       X_FORM; break;
             CASE_PRINT(54, dcbst);      X_FORM; break;
             CASE_PRINT(55, lwzux);      X_FORM; break;
             CASE_PRINT(58, cntlzd);     X_FORM; break;
             CASE_PRINT(60, andc);       X_FORM; break;
             CASE_PRINT(68, td);         X_FORM; break;
-            CASE_PRINT(73, mulhd); break;
-            CASE_PRINT(75, mulhw); break;
+            CASE_PRINT(73, mulhd);      XO_FORM; break;
+            CASE_PRINT(75, mulhw);      XO_FORM; break;
             CASE_PRINT(83, mfmsr);      X_FORM; break;
             CASE_PRINT(84, ldarx);      X_FORM; break;
             CASE_PRINT(86, dcbf);       X_FORM; break;
             CASE_PRINT(87, lbzx);       X_FORM; break;
-            CASE_PRINT(104, neg); break;
+            CASE_PRINT(104, neg);       XO_FORM; break;
             CASE_PRINT(119, lbzux);     X_FORM; break;
             CASE_PRINT(124, nor);       X_FORM; break;
-            CASE_PRINT(136, subfe); break;
-            CASE_PRINT(138, adde); break;
-            CASE_PRINT(144, mtcrf); break;
+            CASE_PRINT(136, subfe);     XO_FORM; break;
+            CASE_PRINT(138, adde);      XO_FORM; break;
+            CASE_PRINT(144, mtcrf);     XFX_FORM; break;
             CASE_PRINT(146, mtmsr);     X_FORM; break;
             CASE_PRINT(149, stdx);      X_FORM; break;
             CASE_PRINT(150, stwcx);     X_FORM; break;
@@ -721,19 +782,19 @@ bool PrintOpcode(Instruction* pInstruction, Label** currentLabel, bool* isBranch
             CASE_PRINT(178, mtmsrd);    X_FORM; break;
             CASE_PRINT(181, stdux);     X_FORM; break;
             CASE_PRINT(183, stwux);     X_FORM; break;
-            CASE_PRINT(200, subfze); break;
-            CASE_PRINT(202, addze); break;
+            CASE_PRINT(200, subfze);    XO_FORM; break;
+            CASE_PRINT(202, addze);     XO_FORM; break;
             CASE_PRINT(210, mtsr);      X_FORM; break;
             CASE_PRINT(214, stdcx.);    X_FORM; break;
             CASE_PRINT(215, stbx);      X_FORM; break;
-            CASE_PRINT(232, subfm); break;
-            CASE_PRINT(233, subfme); break;
-            CASE_PRINT(234, addme); break;
-            CASE_PRINT(235, mullw); break;
+            CASE_PRINT(232, subfm);     XO_FORM; break;
+            CASE_PRINT(233, subfme);    XO_FORM; break;
+            CASE_PRINT(234, addme);     XO_FORM; break;
+            CASE_PRINT(235, mullw);     XO_FORM; break;
             CASE_PRINT(242, mtsrin);    X_FORM; break;
             CASE_PRINT(246, dcbtst);    X_FORM; break;
             CASE_PRINT(247, stbux);     X_FORM; break;
-            CASE_PRINT(266, add); break;
+            CASE_PRINT(266, add);       XO_FORM; break;
             CASE_PRINT(278, dcbt);      X_FORM; break;
             CASE_PRINT(279, lhzx);      X_FORM; break;
             CASE_PRINT(284, eqv);       X_FORM; break;
@@ -745,7 +806,7 @@ bool PrintOpcode(Instruction* pInstruction, Label** currentLabel, bool* isBranch
             CASE_PRINT(341, lwax);      X_FORM; break;
             CASE_PRINT(343, lhax);      X_FORM; break;
             CASE_PRINT(370, tlbia);     X_FORM; break;
-            CASE_PRINT(371, mftb); break;
+            CASE_PRINT(371, mftb);      Q_FORM; break;
             CASE_PRINT(373, lwaux);     X_FORM; break;
             CASE_PRINT(375, lhaux);     X_FORM; break;
             CASE_PRINT(402, slbmte);    X_FORM; break;
@@ -755,12 +816,12 @@ bool PrintOpcode(Instruction* pInstruction, Label** currentLabel, bool* isBranch
             CASE_PRINT(438, ecowx);     X_FORM; break;
             CASE_PRINT(439, sthux);     X_FORM; break;
             CASE_PRINT(444, or);        X_FORM; break;
-            CASE_PRINT(457, divdu); break;
-            CASE_PRINT(459, divwu); break;
+            CASE_PRINT(457, divdu);     XO_FORM; break;
+            CASE_PRINT(459, divwu);     XO_FORM; break;
             CASE_PRINT(467, mtspr);     XFX_FORM; break;
             CASE_PRINT(476, nand);      X_FORM; break;
-            CASE_PRINT(489, divd); break;
-            CASE_PRINT(491, divw); break;
+            CASE_PRINT(489, divd);      XO_FORM; break;
+            CASE_PRINT(491, divw);      XO_FORM; break;
             CASE_PRINT(498, slbia);     X_FORM; break;
             CASE_PRINT(512, mcrxr);     X_FORM; break;
             CASE_PRINT(533, lswx);      X_FORM; break;
