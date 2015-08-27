@@ -472,30 +472,75 @@ void PrintDForm(uint8_t* inst, uint8_t opcode, Instruction* pInstruction)
     uint8_t rst = ((inst[0] & 0x03) << 3) | ((inst[1] & 0xE0) >> 5);
     uint8_t ra = (inst[1] & 0x1F);
 
-    if (opcode == 2 || opcode == 3) // Fixed point trap instructions
+    switch (opcode)
     {
-        snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "0x%02x, r%d, %lld", rst, ra, GetSignExtValueFromDForm(inst));
-    }
-    else if (opcode == 10) // cmpli
-    {
-        snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d, %u", ra, GetValueFromDForm(inst));
-    }
-    else if (opcode == 11) // cmpi
-    {
-        snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d, %lld", ra, GetSignExtValueFromDForm(inst));
-    }
-    else if (opcode >= 48 && opcode <= 55) // FPR instructions
-    {
-        snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "fpr%d, %lld(r%d)", rst, GetSignExtValueFromDForm(inst), ra);
-    }
-    else
-    {
-        snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d, %lld(r%d)", rst, GetSignExtValueFromDForm(inst), ra);
-        if (memcmp(inst, NO_OP, 4) == 0)
-        {
-            pInstruction->pExtraInfo = malloc(11);
-            snprintf(pInstruction->pExtraInfo, 11, "# no-op();");
-        }
+        case 2:
+        case 3:
+            snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "%d, r%d, %lld", rst, ra, GetSignExtValueFromDForm(inst));
+            break;
+        case 10:
+            snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d, %u", ra, GetValueFromDForm(inst));
+            break;
+        case 11:
+            snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d, %lld", ra, GetSignExtValueFromDForm(inst));
+            break;
+        case 14:
+        case 15:
+            if (ra == 0)
+            {
+                snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d, 0, %lld", rst, GetSignExtValueFromDForm(inst));
+                break;
+            }
+        case 7:
+        case 8:
+        case 12:
+        case 13:
+            snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d, r%d, %lld", rst, ra, GetSignExtValueFromDForm(inst));
+            break;
+        case 24:
+        case 25:
+        case 26:
+        case 27:
+        case 28:
+        case 29:
+            snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d, r%d, %d", ra, rst, GetValueFromDForm(inst));
+            if (memcmp(inst, NO_OP, 4) == 0)
+            {
+                pInstruction->pExtraInfo = malloc(11);
+                snprintf(pInstruction->pExtraInfo, 11, "# no-op();");
+            }
+            break;
+        case 32:
+        case 33:
+        case 34:
+        case 35:
+        case 36:
+        case 37:
+        case 38:
+        case 39:
+        case 40:
+        case 41:
+        case 42:
+        case 43:
+        case 44:
+        case 45:
+        case 46:
+        case 47:
+            snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "r%d, %lld(r%d)", rst, GetSignExtValueFromDForm(inst), ra);
+            break;
+        case 48:
+        case 49:
+        case 50:
+        case 51:
+        case 52:
+        case 53:
+        case 54:
+        case 55:
+            snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "fpr%d, %lld(r%d)", rst, GetSignExtValueFromDForm(inst), ra);
+            break;
+        default:
+            snprintf(pInstruction->params, INSTRUCTION_PARAM_SIZE, "DEBUG: unhandled D-form opcode %d", opcode);
+            break;
     }
 }
 
