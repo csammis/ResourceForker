@@ -110,6 +110,7 @@ Symbol* CreateSymbolFromTable(LoaderSection* loader, uint32_t symbolIndex)
             isPointer = false;
             isConst = false;
             isRef = false;
+            isUnsigned = false;
             memset(typeName, 0, 65);
         }
 
