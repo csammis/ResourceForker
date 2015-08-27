@@ -78,10 +78,12 @@ Symbol* CreateSymbolFromTable(LoaderSection* loader, uint32_t symbolIndex)
             case 'l': snprintf(typeName, 5, "long"); break;
             case 's': snprintf(typeName, 6, "short"); break;
             case 'v': snprintf(typeName, 5, "void"); break;
+            case 'i': snprintf(typeName, 4, "int"); break;
             case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
                 {
                     long length = strtol(argStart, &argStart, 10);
                     snprintf(typeName, length + 1, "%s", argStart);
+                    argStart += length - 1;
                 }
                 break;
 
@@ -89,6 +91,8 @@ Symbol* CreateSymbolFromTable(LoaderSection* loader, uint32_t symbolIndex)
             case 'R': isRef = true; break;
             case 'P': isPointer = true; break;
             case 'U': isUnsigned = true; break;
+
+            default: snprintf(typeName, 2, "?"); break;
         }
 
         if (strlen(typeName) != 0)
