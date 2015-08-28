@@ -217,24 +217,17 @@ void AnnotateInstruction(Instruction** instructions, uint32_t i, uint32_t instru
         printf("\n");
         printf(" /");
     }
-    else if (IsPatternEpilogue(instructions, i, instructionCount, pState))
+    
+    if (PrintLabelAtAddress(labels, labelCount, i * 4))
     {
-        if (PrintLabelAtAddress(labels, labelCount, i * 4))
-        {
-            printf("\n");
-            if (pState->inSubroutine)
-                printf("|");
-        }
-        printf("/");
+        printf("\n");
+        if (pState->inSubroutine)
+            printf("|");
     }
-    else
+
+    if (IsPatternEpilogue(instructions, i, instructionCount, pState))
     {
-        if (PrintLabelAtAddress(labels, labelCount, i * 4))
-        {
-            printf("\n");
-            if (pState->inSubroutine)
-                printf("|");
-        }
+        printf("/");
     }
 
     PrintInstruction(instructions[i]);
