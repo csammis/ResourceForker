@@ -203,12 +203,11 @@ void AnnotateInstruction(Instruction** instructions, uint32_t i, uint32_t instru
     }
     else if (IsPatternGlue(instructions, i, instructionCount))
     {
-        int64_t signextvalue = GetSignExtValueFromDForm(instructions[i]->raw);
-        uint32_t dataword = OSReadBigInt32(pDataSection->data, signextvalue);
         printf("\n");
-        PrintLabelAtAddress(labels, labelCount, i * 4);
+        int64_t signextvalue = GetSignExtValueFromDForm(instructions[i]->raw);
         char* symbolName = FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader)->mangledName;
-        printf("\nGlue to offset %lld in data area, containing %d (%s)\n", signextvalue, dataword, symbolName);
+        instructions[i]->pExtraInfo = malloc(128);
+        snprintf(instructions[i]->pExtraInfo, 128, "Glue to symbol %s", symbolName);
     }
     else if (IsPatternPrologue(instructions, i, instructionCount, pState))
     {
