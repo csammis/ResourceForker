@@ -1,5 +1,5 @@
 # ResourceForker
-Extracts individual resources from a classic Mac applicaton's resource fork
+Extracts individual resources from a classic Mac applicaton's resource fork. Also decompiles PowerPC instructions but I keep forgetting to document this.
 
 ## Build
 Built on OS X 10.10.3 using `clang -o ResourceForker ResourceForker.c`
