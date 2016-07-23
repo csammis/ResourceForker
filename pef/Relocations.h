@@ -178,10 +178,6 @@ void ProcessRelocationArea(uint8_t* data, uint32_t sectionCount, uint32_t header
         {
             instructionOffset = DoOneRelocationInstruction(data, instructionOffset, &state, pSection, sections);
         }
-
-        FILE* out = fopen("relocdump.dat", "w");
-        fwrite(pSection->data, pSection->totalLength, 1, out);
-        fclose(out);
     }
 }
 

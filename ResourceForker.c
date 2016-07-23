@@ -92,8 +92,6 @@ int main(int argc, char** argv)
                 printf("! Unable to open '%s'\n", options.filename);
                 return 1;
             }
-            mkdir("disassembly", MKDIR_FLAGS);
-            chdir("disassembly");
             ProcessPEF(pefInput);
             fclose(pefInput);
             chdir("..");
