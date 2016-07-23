@@ -67,7 +67,7 @@ void ProcessLoaderSection(Section** sections, uint16_t loaderSectionIndex, Loade
         uint32_t firstSymbol = OSReadBigInt32(libraryDescription, 16);
         uint8_t options = libraryDescription[20];
 
-        printf("\t\t'%s' imports %u symbols\n", pSection->data + pSection->loaderStringOffset + nameOffset, symbolCount);
+        printf("\t\t%u symbols imported from '%s'\n", symbolCount, pSection->data + pSection->loaderStringOffset + nameOffset);
         for (uint32_t j = 0; j < symbolCount; j++)
         {
             memcpy(&symbolTableEntry, pSection->data + pSection->importSymbolTableOffset + ((j + firstSymbol) * 4), 4);
