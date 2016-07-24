@@ -66,13 +66,9 @@ void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode, char* instrBu
         case 567:
         case 595:
         case 598:
-        case 599:
-        case 631:
         case 659:
         case 663:
         case 695:
-        case 727:
-        case 759:
         case 851:
         case 854:
         case 915:
@@ -80,6 +76,12 @@ void PrintXForm(uint8_t* inst, uint8_t opcode, uint16_t extOpcode, char* instrBu
         case 983:
         case 1014:
             printf("\tDEBUG: Recognized but unimplemented extended opcode %d for opcode 31", extOpcode);
+            break;
+        case 599:
+        case 631:
+        case 727:
+        case 759:
+            snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "fpr%d, r%d, r%d", rst, ra, rb);
             break;
         case 24:
         case 27:
@@ -678,6 +680,26 @@ void HandleOpcode63(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* para
     }
 }
 
+void HandleOpcodeZero(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
+{
+    uint16_t extOpcode = OSReadBigInt32(inst, 2);
+    extOpcode = (extOpcode & 0x07FE) >> 1;
+    if (extOpcode == 256)
+    {
+        snprintf(instrBuffer, INSTRUCTION_NAME_SIZE, "SP Attn");
+    }
+    else
+    {
+        snprintf(instrBuffer, INSTRUCTION_NAME_SIZE, "Illegal!");
+    }
+}
+
+void HandleUnknownOpcode(uint8_t* inst, uint8_t opcode, char* instrBuffer, char* paramBuffer)
+{
+    snprintf(instrBuffer, INSTRUCTION_NAME_SIZE, "Unknown!");
+    snprintf(paramBuffer, INSTRUCTION_PARAM_SIZE, "%d", opcode);
+}
+
 bool PrintOpcode(Instruction* pInstruction, Label** currentLabel, bool* isBranch)
 {
     uint32_t currentAddress = pInstruction->address;
@@ -693,7 +715,7 @@ bool PrintOpcode(Instruction* pInstruction, Label** currentLabel, bool* isBranch
 
     switch (opcode)
     {
-        case 0x00: printf("Illegal!"); break;
+        case 0x00: HandleOpcodeZero(inst, opcode, instrBuffer, paramBuffer); break;
         CASE_PRINT(2,  tdi);    D_FORM; break;
         CASE_PRINT(3,  twi);    D_FORM; break;
         CASE_PRINT(7,  mulli);  D_FORM; break;
@@ -893,7 +915,9 @@ bool PrintOpcode(Instruction* pInstruction, Label** currentLabel, bool* isBranch
         CASE_PRINT(61, stfqu); DS_FORM; break;
         CASE_PRINT(62, std);   DS_FORM; break;
         case 63: HandleOpcode63(inst, opcode, instrBuffer, paramBuffer); break;
-        default: printf("DEBUG: Unknown opcode %d", opcode); return false;
+        default:
+            HandleUnknownOpcode(inst, opcode, instrBuffer, paramBuffer);
+            return false;
     }
 
     return true;
