@@ -3,6 +3,37 @@
 
 #include "Structures.h"
 #include "Relocations.h"
+#include <math.h>
+
+void PrintSymbolName(LoaderSection* pSection, uint8_t* pSymbolTableEntry, int index, const char* prefix, int symbolLength)
+{
+    uint8_t symbolClass = pSymbolTableEntry[0];
+    pSymbolTableEntry[0] = 0x00;
+    uint32_t symbolNameOffset = OSReadBigInt32(pSymbolTableEntry, 0);
+    
+    if (symbolLength == -1)
+    {
+        printf("%s%d: %s ", prefix, index, pSection->data + pSection->loaderStringOffset + symbolNameOffset);
+    }
+    else
+    {
+        char* symbol = malloc(symbolLength + 1);
+        memcpy(symbol, pSection->data + pSection->loaderStringOffset + symbolNameOffset, symbolLength);
+        symbol[symbolLength] = '\0';
+        printf("%s%d: '%s'", prefix, index, symbol);
+        free(symbol);
+    }
+
+    switch(symbolClass & 0x0F)
+    {
+        case 0x00: printf(" (code address)"); break;
+        case 0x01: printf(" (data address)"); break;
+        case 0x02: break; // Almost everything I'm looking at is a standard function
+        case 0x03: printf(" (TOC symbol)"); break;
+        case 0x04: printf(" (linker glue symbol)"); break;
+        default: printf(" ! unknown symbol flag");
+    }
+}
 
 void ProcessLoaderSection(Section** sections, uint16_t loaderSectionIndex, LoaderSection* pSection)
 {
@@ -71,24 +102,44 @@ void ProcessLoaderSection(Section** sections, uint16_t loaderSectionIndex, Loade
         for (uint32_t j = 0; j < symbolCount; j++)
         {
             memcpy(&symbolTableEntry, pSection->data + pSection->importSymbolTableOffset + ((j + firstSymbol) * 4), 4);
-            uint8_t symbolClass = symbolTableEntry[0];
-            symbolTableEntry[0] = 0x00;
-            uint32_t symbolNameOffset = OSReadBigInt32(symbolTableEntry, 0);
-            printf("\t\t\t%d: %s ", totalSymbolCount, pSection->data + pSection->loaderStringOffset + symbolNameOffset);
-            switch(symbolClass & 0x0F)
-            {
-                case 0x00: printf("(code address)"); break;
-                case 0x01: printf("(data address)"); break;
-                case 0x02: break; // Almost everything I'm looking at is a standard function
-                case 0x03: printf("(TOC symbol)"); break;
-                case 0x04: printf("(linker glue symbol)"); break;
-                default: printf("! unknown symbol flag");
-            }
+            PrintSymbolName(pSection, symbolTableEntry, totalSymbolCount, "\t\t\t", -1);
             printf("\n");
             totalSymbolCount++;
         }
     }
+    
     printf("\t%u exported symbols\n", pSection->exportSymbolCount);
+    uint32_t exportHashCount = pow(2, pSection->exportHashTablePower);
+    uint32_t exportTableOffset = pSection->exportHashOffset + (exportHashCount * 4);
+    uint32_t exportTableSize = pSection->exportSymbolCount * 4;
+    uint32_t exportSymbolTableOffset = exportTableOffset + exportTableSize;
+
+    uint32_t currentExportSymbol = 0;
+    for (uint32_t i = 0; i < exportHashCount; i++)
+    {
+        uint8_t hashEntry[4];
+        memcpy(&hashEntry, pSection->data + pSection->exportHashOffset + (i * 4), 4);
+        uint32_t hashValue = OSReadBigInt32(hashEntry, 0);
+        uint32_t chainCount = (hashEntry[0] << 6) | (hashEntry[1] & 0xFC) >> 2;
+        uint32_t firstTableIndex = (hashEntry[1] & 0x03) << 16 | hashEntry[2] << 8 | hashEntry[3];
+
+        for (uint32_t j = 0; j < chainCount; j++)
+        {
+            uint8_t tableEntry[4];
+            memcpy(&tableEntry, pSection->data + exportTableOffset + ((j + firstTableIndex) * 4), 4);
+            uint16_t symbolLength = OSReadBigInt16(tableEntry, 0);
+            uint16_t symbolHash = OSReadBigInt16(tableEntry, 2);
+
+            uint32_t entryOffset = exportSymbolTableOffset + (currentExportSymbol * 10);
+            memcpy(&symbolTableEntry, pSection->data + entryOffset, 4);
+            PrintSymbolName(pSection, symbolTableEntry, currentExportSymbol, "\t\t", symbolLength);
+            uint32_t symbolLocation = OSReadBigInt32(pSection->data + entryOffset, 4);
+            uint16_t symbolSection = OSReadBigInt16(pSection->data + entryOffset, 8);
+            printf(" in section %d at offset 0x%08x\n", symbolSection, symbolLocation);
+            currentExportSymbol++;
+        }
+    }
+
     if (pSection->relocSectionCount != 0)
     {
         printf("\t%u sections requiring relocation\n", pSection->relocSectionCount);
