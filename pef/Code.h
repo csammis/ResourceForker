@@ -197,17 +197,32 @@ void AnnotateInstruction(Instruction** instructions, uint32_t i, uint32_t instru
         if (IsPatternGlue(instructions, glueIndex, instructionCount))
         {
             int64_t signextvalue = GetSignExtValueFromDForm(instructions[glueIndex]->raw);
-            char* symbolName = FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader)->unmangledName;
-            snprintf(instructions[i]->params + strlen(instructions[i]->params), 7 + strlen(symbolName), "\t# %s;", symbolName);
+            if (signextvalue >= 0)
+            {
+                char* symbolName = FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader)->unmangledName;
+                snprintf(instructions[i]->params + strlen(instructions[i]->params), 7 + strlen(symbolName), "\t# %s;", symbolName);
+            }
+            else
+            {
+                snprintf(instructions[i]->params + strlen(instructions[i]->params), 7, "\t# ?!?");
+            }
         }
     }
     else if (IsPatternGlue(instructions, i, instructionCount))
     {
         printf("\n");
         int64_t signextvalue = GetSignExtValueFromDForm(instructions[i]->raw);
-        char* symbolName = FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader)->mangledName;
-        instructions[i]->pExtraInfo = malloc(128);
-        snprintf(instructions[i]->pExtraInfo, 128, "Glue to symbol %s", symbolName);
+        if (signextvalue >= 0)
+        {
+            char* symbolName = FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader)->mangledName;
+            instructions[i]->pExtraInfo = malloc(128);
+            snprintf(instructions[i]->pExtraInfo, 128, "Glue to symbol %s", symbolName);
+        }
+        else
+        {
+            instructions[i]->pExtraInfo = malloc(128);
+            snprintf(instructions[i]->pExtraInfo, 128, "Glue to some batshit whatever!");
+        }
     }
     else if (IsPatternPrologue(instructions, i, instructionCount, pState))
     {
