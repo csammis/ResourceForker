@@ -4,20 +4,113 @@
 #include <stdbool.h>
 
 #define SYMBOL_NAME_LENGTH 257
+
 typedef struct _Symbol
 {
     char* mangledName;
-    char unmangledName[SYMBOL_NAME_LENGTH];
+    char* unmangledName;
+    uint8_t symbolClass;
+    uint16_t extra;
 } Symbol;
+
+typedef struct _SymbolNameTableEntry
+{
+    uint32_t address;
+    Symbol* symbol;
+} SymbolNameTableEntry;
+
+uint32_t importTableSize;
+uint32_t importInsertIndex;
+uint32_t exportTableSize;
+uint32_t exportInsertIndex;
+SymbolNameTableEntry** importSymbolNameTable = NULL;
+SymbolNameTableEntry** exportSymbolNameTable = NULL;
+
+void InitializeSymbolNameTables(uint32_t importSymbolCount, uint32_t exportSymbolCount)
+{
+    importTableSize = importSymbolCount;
+    exportTableSize = exportSymbolCount;
+    importInsertIndex = exportInsertIndex = 0;
+
+    importSymbolNameTable = malloc(importSymbolCount * sizeof(Symbol*));
+    memset(importSymbolNameTable, 0, importSymbolCount * sizeof(Symbol*));
+    exportSymbolNameTable = malloc(exportSymbolCount * sizeof(Symbol*));
+    memset(exportSymbolNameTable, 0, exportSymbolCount * sizeof(Symbol*));
+}
+
+void FreeSymbol(Symbol* symbol)
+{
+    free(symbol->unmangledName);
+    free(symbol);
+}
+
+void FreeSymbolNameTables()
+{
+    if (importSymbolNameTable == NULL)
+        return;
+
+    for (uint32_t i = 0; i < importInsertIndex; i++)
+    {
+        FreeSymbol(importSymbolNameTable[i]->symbol);
+        free(importSymbolNameTable[i]);
+    }
+    free(importSymbolNameTable);
+
+    for (uint32_t i = 0; i < exportInsertIndex; i++)
+    {
+        FreeSymbol(exportSymbolNameTable[i]->symbol);
+        free(exportSymbolNameTable[i]);
+    }
+    free(exportSymbolNameTable);
+}
+
+void AddImportSymbolToNameTable(uint32_t symbolIndex, Symbol* symbol)
+{
+    SymbolNameTableEntry* entry = malloc(sizeof(SymbolNameTableEntry));
+    entry->address = symbolIndex;
+    entry->symbol = symbol;
+    importSymbolNameTable[importInsertIndex++] = entry;
+}
+
+void AddExportSymbolToNameTable(uint32_t exportAddress, Symbol* symbol)
+{
+    SymbolNameTableEntry* entry = malloc(sizeof(SymbolNameTableEntry));
+    entry->address = exportAddress;
+    entry->symbol = symbol;
+    exportSymbolNameTable[exportInsertIndex++] = entry;
+}
+
+Symbol* GetImportSymbol(uint32_t symbolIndex)
+{
+    for (uint32_t i = 0; i < importInsertIndex; i++)
+    {
+        if (importSymbolNameTable[i]->address == symbolIndex)
+        {
+            return importSymbolNameTable[i]->symbol;
+        }
+    }
+    return NULL;
+}
+
+Symbol* GetExportSymbol(uint32_t exportAddress)
+{
+    for (uint32_t i = 0; i < exportInsertIndex; i++)
+    {
+        if (exportSymbolNameTable[i]->address == exportAddress)
+        {
+            return exportSymbolNameTable[i]->symbol;
+        }
+    }
+    return NULL;
+}
+
 
 #define APPEND_LITERAL_TO_SYMBOL(x) snprintf(symbol->unmangledName + strlen(symbol->unmangledName), strlen(x) + 1, x)
 #define APPEND_TO_SYMBOL(x) snprintf(symbol->unmangledName + strlen(symbol->unmangledName), strlen(x) + 1, "%s", x)
 
-Symbol* CreateSymbolFromTable(LoaderSection* loader, uint32_t symbolIndex)
+void SetSymbolUnmangledName(Symbol* symbol)
 {
-    uint32_t symbolTableEntry = OSReadBigInt32(loader->data, loader->importSymbolTableOffset + (symbolIndex * 4));
-    Symbol* symbol = malloc(sizeof(Symbol));
-    symbol->mangledName = (char*)(loader->data + loader->loaderStringOffset + (symbolTableEntry & 0x00FFFFFF));
+    symbol->unmangledName = malloc(sizeof(char) * SYMBOL_NAME_LENGTH);
     memset(symbol->unmangledName, 0, SYMBOL_NAME_LENGTH);
 
     char* argStart = 0;
@@ -55,7 +148,15 @@ Symbol* CreateSymbolFromTable(LoaderSection* loader, uint32_t symbolIndex)
             char* classEnd = classStart + length;
             snprintf(symbol->unmangledName, (classEnd - classStart + 1), "%s", classStart);
             APPEND_LITERAL_TO_SYMBOL("::");
-            argStart = classEnd + 1;
+            // Only standard procedure pointer symbols might have arguments
+            if (symbol->symbolClass == 2)
+            {
+                argStart = classEnd + 1;
+            }
+            else
+            {
+                argStart = 0;
+            }
         }
 
         // Deal with the special cases for constructors and destructors
@@ -117,13 +218,6 @@ Symbol* CreateSymbolFromTable(LoaderSection* loader, uint32_t symbolIndex)
         argStart++;
     }
     APPEND_LITERAL_TO_SYMBOL(")");
-
-    return symbol;
-}
-
-void FreeSymbol(Symbol* symbol)
-{
-    free(symbol);
 }
 
 #endif

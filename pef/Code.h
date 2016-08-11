@@ -31,10 +31,10 @@ typedef struct _PatternState
     bool inSubroutine;
 } PatternState;
 
-Symbol* FindSymbolNameFromGlue(Section* dataSection, int64_t offset, LoaderSection* loaderSection)
+Symbol* FindSymbolNameFromGlue(Section* dataSection, int64_t offset)
 {
     uint32_t symbol = OSReadBigInt32(dataSection->data, offset);
-    return CreateSymbolFromTable(loaderSection, symbol);
+    return GetImportSymbol(symbol);
 }
 
 bool IsPatternEpilogue(Instruction** instructions, uint32_t i, uint32_t instructionCount, PatternState* pState)
@@ -197,10 +197,10 @@ void AnnotateInstruction(Instruction** instructions, uint32_t i, uint32_t instru
         if (IsPatternGlue(instructions, glueIndex, instructionCount))
         {
             int64_t signextvalue = GetSignExtValueFromDForm(instructions[glueIndex]->raw);
-            if (signextvalue >= 0)
+            Symbol* symbol = FindSymbolNameFromGlue(pDataSection, signextvalue);
+            if (symbol != NULL)
             {
-                char* symbolName = FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader)->unmangledName;
-                snprintf(instructions[i]->params + strlen(instructions[i]->params), 7 + strlen(symbolName), "\t# %s;", symbolName);
+                snprintf(instructions[i]->params + strlen(instructions[i]->params), 7 + strlen(symbol->unmangledName), "\t# %s;", symbol->unmangledName);
             }
             else
             {
@@ -212,11 +212,11 @@ void AnnotateInstruction(Instruction** instructions, uint32_t i, uint32_t instru
     {
         printf("\n");
         int64_t signextvalue = GetSignExtValueFromDForm(instructions[i]->raw);
-        if (signextvalue >= 0)
+        Symbol* symbol = FindSymbolNameFromGlue(pDataSection, signextvalue);
+        if (symbol != NULL)
         {
-            char* symbolName = FindSymbolNameFromGlue(pDataSection, signextvalue, pLoader)->mangledName;
             instructions[i]->pExtraInfo = malloc(128);
-            snprintf(instructions[i]->pExtraInfo, 128, "Glue to symbol %s", symbolName);
+            snprintf(instructions[i]->pExtraInfo, 128, "Glue to symbol %s", symbol->unmangledName);
         }
         else
         {

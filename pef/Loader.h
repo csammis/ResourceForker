@@ -3,37 +3,46 @@
 
 #include "Structures.h"
 #include "Relocations.h"
+#include "Symbol.h"
 #include <math.h>
 
-void PrintSymbolName(LoaderSection* pSection, uint8_t* pSymbolTableEntry, int index, const char* prefix, int symbolLength)
+Symbol* InsertImportSymbolIntoNameTable(LoaderSection* pSection, uint8_t* pSymbolTableEntry, int index)
 {
-    uint8_t symbolClass = pSymbolTableEntry[0];
+    Symbol* symbol = malloc(sizeof(Symbol*));
+    symbol->symbolClass = pSymbolTableEntry[0];
+    symbol->extra = 0;
+
     pSymbolTableEntry[0] = 0x00;
     uint32_t symbolNameOffset = OSReadBigInt32(pSymbolTableEntry, 0);
     
-    if (symbolLength == -1)
-    {
-        printf("%s%d: %s ", prefix, index, pSection->data + pSection->loaderStringOffset + symbolNameOffset);
-    }
-    else
-    {
-        char* symbol = malloc(symbolLength + 1);
-        memcpy(symbol, pSection->data + pSection->loaderStringOffset + symbolNameOffset, symbolLength);
-        symbol[symbolLength] = '\0';
-        printf("%s%d: '%s'", prefix, index, symbol);
-        free(symbol);
-    }
+    int symbolLength = strlen((const char*)(pSection->data + pSection->loaderStringOffset + symbolNameOffset));
+    symbol->mangledName = malloc(symbolLength + 1);
+    memcpy(symbol->mangledName, pSection->data + pSection->loaderStringOffset + symbolNameOffset, symbolLength);
+    symbol->mangledName[symbolLength] = '\0';
+    SetSymbolUnmangledName(symbol);
+    AddImportSymbolToNameTable(index, symbol);
 
-    switch(symbolClass & 0x0F)
-    {
-        case 0x00: printf(" (code address)"); break;
-        case 0x01: printf(" (data address)"); break;
-        case 0x02: break; // Almost everything I'm looking at is a standard function
-        case 0x03: printf(" (TOC symbol)"); break;
-        case 0x04: printf(" (linker glue symbol)"); break;
-        default: printf(" ! unknown symbol flag");
-    }
+    return symbol;
 }
+
+Symbol* InsertExportSymbolIntoNameTable(LoaderSection* pSection, uint8_t* pSymbolTableEntry, uint32_t address, uint16_t section, int symbolLength)
+{
+    Symbol* symbol = malloc(sizeof(Symbol*));
+    symbol->symbolClass = pSymbolTableEntry[0];
+    symbol->extra = section;
+
+    pSymbolTableEntry[0] = 0x00;
+    uint32_t symbolNameOffset = OSReadBigInt32(pSymbolTableEntry, 0);
+
+    symbol->mangledName = malloc(symbolLength + 1);
+    memcpy(symbol->mangledName, pSection->data + pSection->loaderStringOffset + symbolNameOffset, symbolLength);
+    symbol->mangledName[symbolLength] = '\0';
+    SetSymbolUnmangledName(symbol);
+    AddExportSymbolToNameTable(address, symbol);
+
+    return symbol;
+}
+
 
 void ProcessLoaderSection(Section** sections, uint16_t loaderSectionIndex, LoaderSection* pSection)
 {
@@ -82,6 +91,8 @@ void ProcessLoaderSection(Section** sections, uint16_t loaderSectionIndex, Loade
         printf("\tNo termination function vector\n");
     }
 
+    InitializeSymbolNameTables(pSection->importSymbolCount, pSection->exportSymbolCount);
+
     printf("\t%u imported symbols from %u libraries\n", pSection->importSymbolCount, pSection->importLibraryCount);
     uint8_t libraryDescription[24];
     uint8_t symbolTableEntry[4];
@@ -102,8 +113,9 @@ void ProcessLoaderSection(Section** sections, uint16_t loaderSectionIndex, Loade
         for (uint32_t j = 0; j < symbolCount; j++)
         {
             memcpy(&symbolTableEntry, pSection->data + pSection->importSymbolTableOffset + ((j + firstSymbol) * 4), 4);
-            PrintSymbolName(pSection, symbolTableEntry, totalSymbolCount, "\t\t\t", -1);
-            printf("\n");
+            Symbol* symbol = InsertImportSymbolIntoNameTable(pSection, symbolTableEntry, totalSymbolCount);
+
+            printf("\t\t\t%d: %s\n", totalSymbolCount, symbol->unmangledName);
             totalSymbolCount++;
         }
     }
@@ -132,10 +144,13 @@ void ProcessLoaderSection(Section** sections, uint16_t loaderSectionIndex, Loade
 
             uint32_t entryOffset = exportSymbolTableOffset + (currentExportSymbol * 10);
             memcpy(&symbolTableEntry, pSection->data + entryOffset, 4);
-            PrintSymbolName(pSection, symbolTableEntry, currentExportSymbol, "\t\t", symbolLength);
+            
             uint32_t symbolLocation = OSReadBigInt32(pSection->data + entryOffset, 4);
             uint16_t symbolSection = OSReadBigInt16(pSection->data + entryOffset, 8);
-            printf(" in section %d at offset 0x%08x\n", symbolSection, symbolLocation);
+
+            Symbol* symbol = InsertExportSymbolIntoNameTable(pSection, symbolTableEntry, symbolLocation, symbolSection, symbolLength);
+
+            printf("\t\t%d: %s in section %d at offset 0x%08x\n", currentExportSymbol, symbol->unmangledName, symbolSection, symbolLocation);
             currentExportSymbol++;
         }
     }
