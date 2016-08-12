@@ -169,7 +169,7 @@ void ProcessRelocationArea(uint8_t* data, uint32_t sectionCount, uint32_t header
         uint32_t endOffset = instructionOffset + (relocCount * 2);
 
         RelocationState state;
-        state.relocAddr = 0;
+        state.relocAddr = sections[affectedSection]->baseAddress;
         state.importIndex = 0;
         state.sectionC = sections[0]->baseAddress;
         state.sectionD = sections[1]->baseAddress;
