@@ -198,6 +198,12 @@ void AnnotateInstruction(Instruction** instructions, uint32_t i, uint32_t instru
         {
             int64_t signextvalue = GetSignExtValueFromDForm(instructions[glueIndex]->raw);
             Symbol* symbol = FindSymbolNameFromGlue(pDataSection, signextvalue);
+            if (symbol == NULL)
+            {
+                uint16_t jiggeredValue = OSReadBigInt16(instructions[glueIndex]->raw, 2) & 0x7FFF;
+                symbol = FindSymbolNameFromGlue(pDataSection, jiggeredValue);
+            }
+
             if (symbol != NULL)
             {
                 snprintf(instructions[i]->params + strlen(instructions[i]->params), 7 + strlen(symbol->unmangledName), "\t# %s;", symbol->unmangledName);
@@ -213,6 +219,13 @@ void AnnotateInstruction(Instruction** instructions, uint32_t i, uint32_t instru
         printf("\n");
         int64_t signextvalue = GetSignExtValueFromDForm(instructions[i]->raw);
         Symbol* symbol = FindSymbolNameFromGlue(pDataSection, signextvalue);
+        if (symbol == NULL)
+        {
+            uint16_t jiggeredValue = OSReadBigInt16(instructions[i]->raw, 2) & 0x7FFF;
+            symbol = FindSymbolNameFromGlue(pDataSection, jiggeredValue);
+        }
+
+
         if (symbol != NULL)
         {
             instructions[i]->pExtraInfo = malloc(128);
