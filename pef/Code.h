@@ -143,13 +143,28 @@ bool IsPatternGlue(Instruction** instructions, uint32_t i, uint32_t instructionC
 
 bool PrintLabelAtAddress(Label** labels, uint32_t labelCount, uint64_t address)
 {
-    for (uint32_t j = 0; j < labelCount; j++)
+    char* labelName = NULL;
+    Symbol* namedExport = GetExportSymbol(address);
+    if (namedExport != NULL)
     {
-        if (labels[j]->address == address)
+        labelName = namedExport->unmangledName;
+    }
+    else
+    {
+        for (uint32_t j = 0; j < labelCount; j++)
         {
-            printf("%016x %s:", labels[j]->address, labels[j]->name);
-            return true;
+            if (labels[j]->address == address)
+            {
+                labelName = labels[j]->name;
+                break;
+            }
         }
+    }
+
+    if (labelName != NULL)
+    {
+        printf("%016x %s:", (unsigned int)address, labelName);
+        return true;
     }
     return false;
 }

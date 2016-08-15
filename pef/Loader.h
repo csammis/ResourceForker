@@ -8,8 +8,8 @@
 
 Symbol* InsertImportSymbolIntoNameTable(LoaderSection* pSection, uint8_t* pSymbolTableEntry, int index)
 {
-    Symbol* symbol = malloc(sizeof(Symbol*));
-    symbol->symbolClass = pSymbolTableEntry[0];
+    Symbol* symbol = malloc(sizeof(Symbol));
+    symbol->symbolClass = pSymbolTableEntry[0] & 0x0F;
     symbol->extra = 0;
 
     pSymbolTableEntry[0] = 0x00;
@@ -27,7 +27,7 @@ Symbol* InsertImportSymbolIntoNameTable(LoaderSection* pSection, uint8_t* pSymbo
 
 Symbol* InsertExportSymbolIntoNameTable(LoaderSection* pSection, uint8_t* pSymbolTableEntry, uint32_t address, uint16_t section, int symbolLength)
 {
-    Symbol* symbol = malloc(sizeof(Symbol*));
+    Symbol* symbol = malloc(sizeof(Symbol));
     symbol->symbolClass = pSymbolTableEntry[0];
     symbol->extra = section;
 
@@ -115,7 +115,9 @@ void ProcessLoaderSection(Section** sections, uint16_t loaderSectionIndex, Loade
             memcpy(&symbolTableEntry, pSection->data + pSection->importSymbolTableOffset + ((j + firstSymbol) * 4), 4);
             Symbol* symbol = InsertImportSymbolIntoNameTable(pSection, symbolTableEntry, totalSymbolCount);
 
-            printf("\t\t\t%d: %s\n", totalSymbolCount, symbol->unmangledName);
+            printf("\t\t\t%d: %s", totalSymbolCount, symbol->unmangledName);
+            PrintSymbolClass(symbol);
+            printf("\n");
             totalSymbolCount++;
         }
     }

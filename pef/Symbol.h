@@ -104,6 +104,19 @@ Symbol* GetExportSymbol(uint32_t exportAddress)
     return NULL;
 }
 
+void PrintSymbolClass(Symbol* symbol)
+{
+    switch (symbol->symbolClass)
+    {
+        case 0x00: printf(" (code address)"); break;
+        case 0x01: printf(" (data address)"); break;
+        case 0x02: break; // Almost everything I'm looking at is a standard function
+        case 0x03: printf(" (TOC symbol)"); break;
+        case 0x04: printf(" (linker glue symbol)"); break;
+        default: printf(" ! unknown symbol flag");
+    }
+}
+
 
 #define APPEND_LITERAL_TO_SYMBOL(x) snprintf(symbol->unmangledName + strlen(symbol->unmangledName), strlen(x) + 1, x)
 #define APPEND_TO_SYMBOL(x) snprintf(symbol->unmangledName + strlen(symbol->unmangledName), strlen(x) + 1, "%s", x)
@@ -167,6 +180,9 @@ void SetSymbolUnmangledName(Symbol* symbol)
         else
             APPEND_TO_SYMBOL(funcName);
     }
+
+    if (symbol->symbolClass != 2)
+        return;
 
     APPEND_LITERAL_TO_SYMBOL("(");
     bool isPointer = false, isConst = false, isRef = false, isUnsigned = false, firstParam = true;
